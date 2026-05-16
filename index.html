@@ -92,6 +92,11 @@
     .seg{display:flex;background:var(--bg);border-radius:8px;padding:2px;gap:2px}
     .seg-b{flex:1;padding:7px 4px;text-align:center;font-size:.8rem;font-weight:500;border:none;background:none;color:var(--text2);border-radius:6px;cursor:pointer;transition:background .15s,color .15s}
     .seg-b.on{background:var(--bg2);color:var(--text);font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.15)}
+    .fbadge{font-size:.68rem;font-weight:600;border-radius:4px;padding:1px 5px}
+    .fb-due{color:#ea580c;background:color-mix(in srgb,#ea580c 15%,transparent)}
+    .fb-late{color:var(--hoch);background:color-mix(in srgb,var(--hoch) 15%,transparent)}
+    .fb-future{color:var(--text2);background:var(--border)}
+    input[type=date]{color-scheme:light dark}
     .mbtns{display:flex;gap:8px;margin-top:16px}
     .btn-sec{flex:1;padding:11px;border:1px solid var(--border);border-radius:8px;background:none;color:var(--text);font-size:.9rem;cursor:pointer}
     .btn-pri{flex:2;padding:11px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:.9rem;font-weight:600;cursor:pointer}
@@ -160,6 +165,10 @@
         <button class="seg-b"    data-v="arbeit"  onclick="setKat('arbeit')">Arbeit</button>
       </div>
     </div>
+    <div class="form-row">
+      <label>Fälligkeit <span style="font-weight:400;color:var(--text2)">(optional)</span></label>
+      <input type="date" id="m-faell">
+    </div>
     <div class="mbtns">
       <button class="btn-sec" onclick="closeModal()">Abbrechen</button>
       <button class="btn-pri" onclick="saveModal()">Speichern</button>
@@ -184,7 +193,7 @@ const KAT_LBL      = { pka:'PKA', privat:'Privat', arbeit:'Arbeit' };
 // ── State ──────────────────────────────────────────────────────
 let dbxAccess = '', dbxRefresh = '', dbxKey = APP_KEY;
 let db = { v:1, todos:[] };
-let tab = 'pka', editId = null, mPrio = 'niedrig', mKat = 'pka';
+let tab = 'pka', editId = null, mPrio = 'niedrig', mKat = 'pka', mFaell = '';
 
 try { dbxRefresh = localStorage.getItem(LS_REFRESH) || ''; } catch(e) {}
 try { dbxKey = localStorage.getItem(LS_KEY) || APP_KEY; } catch(e) {}
@@ -302,15 +311,25 @@ function render() {
   document.getElementById('list').innerHTML = h;
 }
 
+function faellBadge(f, erledigt) {
+  if (!f || erledigt) return '';
+  const today = new Date().toISOString().split('T')[0];
+  const df = f.split('-').reverse().join('.');
+  if (f < today)  return `<span class="fbadge fb-late">⚠️ ${df}</span>`;
+  if (f === today) return `<span class="fbadge fb-due">📅 Heute</span>`;
+  return `<span class="fbadge fb-future">📅 ${df}</span>`;
+}
+
 function card(t) {
   const d = t.datum ? t.datum.split('-').reverse().join('.') : '';
   const pb = t.prio==='hoch'?'bh':t.prio==='mittel'?'bm':'bn';
   const kb = tab==='alle' ? `<span class="kbadge">${KAT_LBL[t.kategorie]||t.kategorie}</span>` : '';
+  const fb = faellBadge(t.faelligkeit, t.erledigt);
   return `<div class="card${t.erledigt?' done':''}">
     <div class="chk${t.erledigt?' on':''}" onclick="toggle('${t.id}')"></div>
     <div class="cbody">
       <div class="ctext">${esc(t.aufgabe)}</div>
-      <div class="cmeta"><span class="cdate">${d}</span><span class="pbadge ${pb}">${PRIO_LBL[t.prio||'niedrig']}</span>${kb}</div>
+      <div class="cmeta"><span class="cdate">${d}</span><span class="pbadge ${pb}">${PRIO_LBL[t.prio||'niedrig']}</span>${kb}${fb}</div>
     </div>
     <div class="cacts">
       <button class="bico" onclick="showEdit('${t.id}')" title="Bearbeiten">✏️</button>
@@ -353,7 +372,8 @@ function showAdd() {
   editId = null;
   document.getElementById('m-title').textContent = 'Neues Todo';
   document.getElementById('m-text').value = '';
-  mPrio = 'niedrig'; mKat = tab === 'alle' ? 'pka' : tab;
+  document.getElementById('m-faell').value = '';
+  mPrio = 'niedrig'; mKat = tab === 'alle' ? 'pka' : tab; mFaell = '';
   seg('m-prio', mPrio); seg('m-kat', mKat);
   document.getElementById('modal').classList.add('open');
   setTimeout(() => document.getElementById('m-text').focus(), 100);
@@ -364,7 +384,8 @@ function showEdit(id) {
   editId = id;
   document.getElementById('m-title').textContent = 'Todo bearbeiten';
   document.getElementById('m-text').value = t.aufgabe;
-  mPrio = t.prio || 'niedrig'; mKat = t.kategorie || 'pka';
+  document.getElementById('m-faell').value = t.faelligkeit || '';
+  mPrio = t.prio || 'niedrig'; mKat = t.kategorie || 'pka'; mFaell = t.faelligkeit || '';
   seg('m-prio', mPrio); seg('m-kat', mKat);
   document.getElementById('modal').classList.add('open');
 }
@@ -378,12 +399,13 @@ async function saveModal() {
   const aufgabe = document.getElementById('m-text').value.trim();
   if (!aufgabe) { document.getElementById('m-text').style.borderColor = 'var(--hoch)'; return; }
   document.getElementById('m-text').style.borderColor = '';
+  const faelligkeit = document.getElementById('m-faell').value || null;
   if (editId) {
     const t = db.todos.find(x => x.id === editId);
-    if (t) { t.aufgabe = aufgabe; t.prio = mPrio; t.kategorie = mKat; }
+    if (t) { t.aufgabe = aufgabe; t.prio = mPrio; t.kategorie = mKat; t.faelligkeit = faelligkeit; }
   } else {
     db.todos.push({ id:crypto.randomUUID(), datum:new Date().toISOString().split('T')[0],
-      aufgabe, prio:mPrio, kategorie:mKat, erledigt:false, erledigt_am:null });
+      aufgabe, prio:mPrio, kategorie:mKat, erledigt:false, erledigt_am:null, faelligkeit });
   }
   closeModal(); render(); await save();
 }
