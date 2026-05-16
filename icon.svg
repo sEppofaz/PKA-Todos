@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="110" fill="#7C3AED"/>
+  <!-- Checkboxen links -->
+  <rect x="90" y="148" width="56" height="56" rx="14" stroke="white" stroke-width="10" fill="none"/>
+  <path d="M103 176 l16 16 l26 -26" stroke="white" stroke-width="12" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="90" y="228" width="56" height="56" rx="14" stroke="white" stroke-width="10" fill="none"/>
+  <path d="M103 256 l16 16 l26 -26" stroke="white" stroke-width="12" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="90" y="308" width="56" height="56" rx="14" stroke="white" stroke-width="10" fill="none" opacity="0.45"/>
+  <!-- Textzeilen rechts -->
+  <rect x="170" y="162" width="252" height="18" rx="9" fill="white"/>
+  <rect x="170" y="242" width="210" height="18" rx="9" fill="white"/>
+  <rect x="170" y="322" width="232" height="18" rx="9" fill="white" opacity="0.45"/>
+</svg>
