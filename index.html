@@ -171,7 +171,10 @@
     </div>
     <div class="form-row">
       <label>Fälligkeit <span style="font-weight:400;color:var(--text2)">(optional)</span></label>
-      <input type="date" id="m-faell">
+      <div style="display:flex;gap:8px">
+        <input type="date" id="m-faell" style="flex:1">
+        <input type="time" id="m-faell-uhr" style="flex:0 0 auto;width:110px">
+      </div>
     </div>
     <div class="mbtns">
       <button class="btn-sec" onclick="closeModal()">Abbrechen</button>
@@ -196,7 +199,7 @@ const KAT_LBL      = { pka:'PKA', privat:'Privat', arbeit:'Arbeit' };
 // ── State ──────────────────────────────────────────────────────
 let dbxAccess = '', dbxRefresh = '', dbxKey = APP_KEY;
 let db = { v:1, todos:[] };
-let tab = 'pka', editId = null, mPrio = 'niedrig', mKat = 'pka', mFaell = '';
+let tab = 'pka', editId = null, mPrio = 'niedrig', mKat = 'pka', mFaell = '', mFaellUhr = '';
 
 try { dbxRefresh = localStorage.getItem(LS_REFRESH) || ''; } catch(e) {}
 try { dbxKey = localStorage.getItem(LS_KEY) || APP_KEY; } catch(e) {}
@@ -307,20 +310,21 @@ function render() {
   initDrag();
 }
 
-function faellBadge(f, erledigt) {
+function faellBadge(f, fu, erledigt) {
   if (!f || erledigt) return '';
   const today = new Date().toISOString().split('T')[0];
   const df = f.split('-').reverse().join('.');
-  if (f < today)  return `<span class="fbadge fb-late">⚠️ ${df}</span>`;
-  if (f === today) return `<span class="fbadge fb-due">📅 Heute</span>`;
-  return `<span class="fbadge fb-future">📅 ${df}</span>`;
+  const uhr = fu ? ` ${fu}` : '';
+  if (f < today)  return `<span class="fbadge fb-late">⚠️ ${df}${uhr}</span>`;
+  if (f === today) return `<span class="fbadge fb-due">📅 Heute${uhr}</span>`;
+  return `<span class="fbadge fb-future">📅 ${df}${uhr}</span>`;
 }
 
 function card(t, num) {
   const d = t.datum ? t.datum.split('-').reverse().join('.') : '';
   const pb = t.prio==='hoch'?'bh':t.prio==='mittel'?'bm':'bn';
   const kb = tab==='alle' ? `<span class="kbadge">${KAT_LBL[t.kategorie]||t.kategorie}</span>` : '';
-  const fb = faellBadge(t.faelligkeit, t.erledigt);
+  const fb = faellBadge(t.faelligkeit, t.faelligkeit_uhrzeit, t.erledigt);
   return `<div class="card${t.erledigt?' done':''}" data-id="${t.id}" data-prio="${t.prio||'niedrig'}" onclick="showEdit('${t.id}')">
     <div class="drag-handle" onclick="event.stopPropagation()">⠿</div>
     <div class="chk${t.erledigt?' on':''}" onclick="event.stopPropagation();toggle('${t.id}')"></div>
@@ -381,7 +385,8 @@ function showEdit(id) {
   document.getElementById('m-title').textContent = 'Todo bearbeiten';
   document.getElementById('m-text').value = t.aufgabe;
   document.getElementById('m-faell').value = t.faelligkeit || '';
-  mPrio = t.prio || 'niedrig'; mKat = t.kategorie || 'pka'; mFaell = t.faelligkeit || '';
+  document.getElementById('m-faell-uhr').value = t.faelligkeit_uhrzeit || '';
+  mPrio = t.prio || 'niedrig'; mKat = t.kategorie || 'pka'; mFaell = t.faelligkeit || ''; mFaellUhr = t.faelligkeit_uhrzeit || '';
   seg('m-prio', mPrio); seg('m-kat', mKat);
   document.getElementById('modal').classList.add('open');
 }
@@ -396,12 +401,13 @@ async function saveModal() {
   if (!aufgabe) { document.getElementById('m-text').style.borderColor = 'var(--hoch)'; return; }
   document.getElementById('m-text').style.borderColor = '';
   const faelligkeit = document.getElementById('m-faell').value || null;
+  const faelligkeit_uhrzeit = faelligkeit ? (document.getElementById('m-faell-uhr').value || null) : null;
   if (editId) {
     const t = db.todos.find(x => x.id === editId);
-    if (t) { t.aufgabe = aufgabe; t.prio = mPrio; t.kategorie = mKat; t.faelligkeit = faelligkeit; }
+    if (t) { t.aufgabe = aufgabe; t.prio = mPrio; t.kategorie = mKat; t.faelligkeit = faelligkeit; t.faelligkeit_uhrzeit = faelligkeit_uhrzeit; }
   } else {
     db.todos.push({ id:crypto.randomUUID(), datum:new Date().toISOString().split('T')[0],
-      aufgabe, prio:mPrio, kategorie:mKat, erledigt:false, erledigt_am:null, faelligkeit });
+      aufgabe, prio:mPrio, kategorie:mKat, erledigt:false, erledigt_am:null, faelligkeit, faelligkeit_uhrzeit });
   }
   closeModal(); render(); await save();
 }
