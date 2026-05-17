@@ -72,6 +72,9 @@
     .cacts{flex-shrink:0;display:flex;gap:2px}
     .bico{background:none;border:none;cursor:pointer;padding:5px;border-radius:6px;color:var(--text2);font-size:.95rem;line-height:1}
     .bico:hover{background:var(--border)}
+    .drag-handle{cursor:grab;color:var(--text2);font-size:1rem;flex-shrink:0;padding:3px 4px;line-height:1;touch-action:none;user-select:none;-webkit-user-select:none;opacity:.45}
+    .drag-handle:active{cursor:grabbing}
+    .card.dragging{opacity:.35;background:var(--border)}
 
     /* Erledigt-Sektion */
     .done-sec{margin-top:10px}
@@ -300,18 +303,25 @@ function render() {
 
   const g = {hoch:[],mittel:[],niedrig:[]};
   offen.forEach(t => g[t.prio||'niedrig'].push(t));
+  for (const p of ['hoch','mittel','niedrig']) {
+    g[p].sort((a,b) => {
+      const ao = a.order??9999, bo = b.order??9999;
+      return ao !== bo ? ao-bo : b.datum.localeCompare(a.datum);
+    });
+  }
 
   let h = '';
   for (const p of ['hoch','mittel','niedrig']) {
     if (!g[p].length) continue;
     const dot = p==='hoch'?'ph':p==='mittel'?'pm':'pn';
-    h += `<div class="prio-label"><span class="pdot ${dot}"></span>${PRIO_LBL[p]}</div>`;
+    h += `<div class="prio-label" data-prio="${p}"><span class="pdot ${dot}"></span>${PRIO_LBL[p]}</div>`;
     g[p].forEach(t => { h += card(t); });
   }
   if (done.length) {
     h += `<div class="done-sec"><button class="done-tog" onclick="togDone(this)"><span class="darr">▶</span> Erledigt (${done.length})</button><div class="done-list">${done.map(card).join('')}</div></div>`;
   }
   document.getElementById('list').innerHTML = h;
+  initDrag();
 }
 
 function faellBadge(f, erledigt) {
@@ -328,7 +338,8 @@ function card(t) {
   const pb = t.prio==='hoch'?'bh':t.prio==='mittel'?'bm':'bn';
   const kb = tab==='alle' ? `<span class="kbadge">${KAT_LBL[t.kategorie]||t.kategorie}</span>` : '';
   const fb = faellBadge(t.faelligkeit, t.erledigt);
-  return `<div class="card${t.erledigt?' done':''}" onclick="showEdit('${t.id}')">
+  return `<div class="card${t.erledigt?' done':''}" data-id="${t.id}" data-prio="${t.prio||'niedrig'}" onclick="showEdit('${t.id}')">
+    <div class="drag-handle" onclick="event.stopPropagation()">⠿</div>
     <div class="chk${t.erledigt?' on':''}" onclick="event.stopPropagation();toggle('${t.id}')"></div>
     <div class="cbody">
       <div class="ctext">${esc(t.aufgabe)}</div>
@@ -410,6 +421,56 @@ async function saveModal() {
       aufgabe, prio:mPrio, kategorie:mKat, erledigt:false, erledigt_am:null, faelligkeit });
   }
   closeModal(); render(); await save();
+}
+
+// ── Drag & Drop ────────────────────────────────────────────────
+let _drag = null;
+
+function initDrag() {
+  document.querySelectorAll('.drag-handle').forEach(h => {
+    h.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      const card = h.closest('.card');
+      _drag = { card, prio: card.dataset.prio };
+      card.classList.add('dragging');
+      card.style.pointerEvents = 'none';
+      document.addEventListener('pointermove', onDragMove, { passive: false });
+      document.addEventListener('pointerup', onDragEnd);
+    });
+  });
+}
+
+function onDragMove(e) {
+  e.preventDefault();
+  const el = document.elementFromPoint(e.clientX, e.clientY);
+  if (!el) return;
+  const target = el.closest('.card[data-id]');
+  if (!target || target === _drag.card || target.dataset.prio !== _drag.prio) return;
+  const rect = target.getBoundingClientRect();
+  if (e.clientY < rect.top + rect.height / 2) {
+    target.parentNode.insertBefore(_drag.card, target);
+  } else {
+    target.parentNode.insertBefore(_drag.card, target.nextSibling);
+  }
+}
+
+function onDragEnd() {
+  if (!_drag) return;
+  _drag.card.classList.remove('dragging');
+  _drag.card.style.pointerEvents = '';
+  document.removeEventListener('pointermove', onDragMove);
+  document.removeEventListener('pointerup', onDragEnd);
+  saveOrder();
+  _drag = null;
+}
+
+function saveOrder() {
+  document.querySelectorAll('.card[data-id]').forEach((c, i) => {
+    const t = db.todos.find(x => x.id === c.dataset.id);
+    if (t) t.order = i;
+  });
+  save();
 }
 
 // ── Setup ──────────────────────────────────────────────────────
