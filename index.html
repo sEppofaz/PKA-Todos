@@ -328,15 +328,14 @@ function card(t) {
   const pb = t.prio==='hoch'?'bh':t.prio==='mittel'?'bm':'bn';
   const kb = tab==='alle' ? `<span class="kbadge">${KAT_LBL[t.kategorie]||t.kategorie}</span>` : '';
   const fb = faellBadge(t.faelligkeit, t.erledigt);
-  return `<div class="card${t.erledigt?' done':''}">
-    <div class="chk${t.erledigt?' on':''}" onclick="toggle('${t.id}')"></div>
+  return `<div class="card${t.erledigt?' done':''}" onclick="showEdit('${t.id}')">
+    <div class="chk${t.erledigt?' on':''}" onclick="event.stopPropagation();toggle('${t.id}')"></div>
     <div class="cbody">
       <div class="ctext">${esc(t.aufgabe)}</div>
       <div class="cmeta"><span class="cdate">${d}</span><span class="pbadge ${pb}">${PRIO_LBL[t.prio||'niedrig']}</span>${kb}${fb}</div>
     </div>
     <div class="cacts">
-      <button class="bico" onclick="showEdit('${t.id}')" title="Bearbeiten">✏️</button>
-      <button class="bico" onclick="del('${t.id}')" title="Löschen">🗑</button>
+      <button class="bico" onclick="event.stopPropagation();del('${t.id}')" title="Löschen">🗑</button>
     </div>
   </div>`;
 }
