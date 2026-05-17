@@ -232,7 +232,10 @@ async function refresh() {
     body: new URLSearchParams({ grant_type:'refresh_token', refresh_token:dbxRefresh, client_id:dbxKey })
   });
   const d = await r.json();
-  if (d.access_token) dbxAccess = d.access_token;
+  if (d.access_token) { dbxAccess = d.access_token; return true; }
+  dbxRefresh = '';
+  try { localStorage.removeItem(LS_REFRESH); } catch(e) {}
+  return false;
 }
 
 // ── Dropbox I/O ────────────────────────────────────────────────
@@ -422,6 +425,8 @@ async function init() {
   const code = new URLSearchParams(location.search).get('code');
   if (code) { await handleCallback(code); return; }
   if (!dbxRefresh) { hide('loading'); show('setup'); return; }
+  const ok = await refresh();
+  if (!ok) { hide('loading'); show('setup'); return; }
   await load();
 }
 
