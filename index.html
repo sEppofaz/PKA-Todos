@@ -64,6 +64,7 @@
     .card.done .ctext{text-decoration:line-through}
     .cmeta{display:flex;align-items:center;gap:5px;margin-top:4px;flex-wrap:wrap}
     .cdate{font-size:.72rem;color:var(--text2)}
+    .cnum{font-size:.72rem;font-weight:700;color:var(--text2);background:var(--border);border-radius:4px;padding:1px 5px;flex-shrink:0}
     .pbadge{font-size:.68rem;font-weight:600;border-radius:4px;padding:1px 5px}
     .bh{color:var(--hoch);background:color-mix(in srgb,var(--hoch) 15%,transparent)}
     .bm{color:var(--mittel);background:color-mix(in srgb,var(--mittel) 15%,transparent)}
@@ -292,12 +293,12 @@ function render() {
     });
   }
 
-  let h = '';
+  let h = '', num = 1;
   for (const p of ['hoch','mittel','niedrig']) {
     if (!g[p].length) continue;
     const dot = p==='hoch'?'ph':p==='mittel'?'pm':'pn';
     h += `<div class="prio-label" data-prio="${p}"><span class="pdot ${dot}"></span>${PRIO_LBL[p]}</div>`;
-    g[p].forEach(t => { h += card(t); });
+    g[p].forEach(t => { h += card(t, num++); });
   }
   if (done.length) {
     h += `<div class="done-sec"><button class="done-tog" onclick="togDone(this)"><span class="darr">▶</span> Erledigt (${done.length})</button><div class="done-list">${done.map(card).join('')}</div></div>`;
@@ -315,7 +316,7 @@ function faellBadge(f, erledigt) {
   return `<span class="fbadge fb-future">📅 ${df}</span>`;
 }
 
-function card(t) {
+function card(t, num) {
   const d = t.datum ? t.datum.split('-').reverse().join('.') : '';
   const pb = t.prio==='hoch'?'bh':t.prio==='mittel'?'bm':'bn';
   const kb = tab==='alle' ? `<span class="kbadge">${KAT_LBL[t.kategorie]||t.kategorie}</span>` : '';
@@ -325,7 +326,7 @@ function card(t) {
     <div class="chk${t.erledigt?' on':''}" onclick="event.stopPropagation();toggle('${t.id}')"></div>
     <div class="cbody">
       <div class="ctext">${esc(t.aufgabe)}</div>
-      <div class="cmeta"><span class="cdate">${d}</span><span class="pbadge ${pb}">${PRIO_LBL[t.prio||'niedrig']}</span>${kb}${fb}</div>
+      <div class="cmeta">${num!=null?`<span class="cnum">#${num}</span>`:''}<span class="cdate">${d}</span><span class="pbadge ${pb}">${PRIO_LBL[t.prio||'niedrig']}</span>${kb}${fb}</div>
     </div>
     <div class="cacts">
       <button class="bico" onclick="event.stopPropagation();del('${t.id}')" title="Löschen">🗑</button>
