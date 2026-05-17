@@ -183,7 +183,6 @@
 // ── Konstanten ─────────────────────────────────────────────────
 const APP_KEY      = 's2ggv6zysmzn7fa';
 const DBX_FILE     = '/Apps/Claude/Todo-App/Todos.json';
-const MD_FILE      = '/Apps/Claude/PKA/Todos.md';
 const DBX_REDIRECT = 'https://seppofaz.github.io/PKA-Todos/';
 const LS_REFRESH   = 'pka_todos_dbx_refresh';
 const LS_KEY       = 'pka_todos_dbx_key';
@@ -259,29 +258,12 @@ async function dbxPut(path, data) {
   if (r.status === 401) { await refresh(); return dbxPut(path, data); }
 }
 
-// ── Migration Todos.md → Todos.json ───────────────────────────
-async function migrate() {
-  const r = await dbxGet(MD_FILE);
-  if (!r) return;
-  const md = await r.text();
-  const re = /^- \[ \] (\d{4}-\d{2}-\d{2})(?:\s+\d{2}:\d{2})?\s*[–-]\s*(.+)$/gm;
-  let m; const todos = [];
-  while ((m = re.exec(md)) !== null) {
-    const aufgabe = m[2].trim();
-    todos.push({ id:crypto.randomUUID(), datum:m[1], aufgabe, prio:'niedrig', kategorie:'pka', erledigt:false, erledigt_am:null });
-  }
-  db = { v:1, todos };
-  await save();
-}
-
 // ── Load / Save ────────────────────────────────────────────────
 async function load() {
   show('loading'); hide('app');
   const r = await dbxGet(DBX_FILE);
   if (r) {
     try { db = await r.json(); } catch(e) { db = {v:1,todos:[]}; }
-  } else {
-    await migrate();
   }
   hide('loading'); show('app');
   render();
