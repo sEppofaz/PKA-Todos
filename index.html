@@ -480,6 +480,10 @@ async function init() {
 }
 
 init();
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && dbxRefresh) load();
+});
 </script>
 
 <script>
