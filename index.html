@@ -41,10 +41,6 @@
     header h1{font-size:1.15rem;font-weight:700}
     .btn-add{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:7px 16px;font-size:.88rem;font-weight:600;cursor:pointer}
 
-    /* Tabs */
-    .tabs{display:flex}
-    .tab{flex:1;padding:9px 4px;text-align:center;font-size:.82rem;font-weight:500;color:var(--text2);border-bottom:2px solid transparent;cursor:pointer;transition:color .15s,border-color .15s}
-    .tab.active{color:var(--accent);border-color:var(--accent)}
 
     /* Main */
     main{padding:12px calc(12px + env(safe-area-inset-right,0px)) calc(16px + env(safe-area-inset-bottom,0px)) calc(12px + env(safe-area-inset-left,0px));max-width:600px;margin:0 auto}
@@ -92,7 +88,7 @@
     /* Forms */
     .form-row{margin-bottom:12px}
     .form-row label{display:block;font-size:.8rem;font-weight:600;color:var(--text2);margin-bottom:4px}
-    .form-row textarea,.form-row input{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:.9rem;font-family:inherit}
+    .form-row textarea,.form-row input{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:1rem;font-family:inherit}
     .form-row textarea{resize:none;min-height:80px}
     .seg{display:flex;background:var(--bg);border-radius:8px;padding:2px;gap:2px}
     .seg-b{flex:1;padding:7px 4px;text-align:center;font-size:.8rem;font-weight:500;border:none;background:none;color:var(--text2);border-radius:6px;cursor:pointer;transition:background .15s,color .15s}
@@ -135,10 +131,6 @@
     <div class="h-row">
       <h1>PKA Todos</h1>
       <button class="btn-add" onclick="showAdd()">+ Neu</button>
-    </div>
-    <div class="tabs" id="tabs">
-      <div class="tab active" data-tab="pka">PKA</div>
-      <div class="tab" data-tab="alle">Alle</div>
     </div>
   </header>
   <main id="list"></main>
@@ -268,8 +260,7 @@ async function save() { await dbxPut(DBX_FILE, db); }
 
 // ── Render ─────────────────────────────────────────────────────
 function render() {
-  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
-  const filtered = tab === 'alle' ? [...db.todos] : db.todos.filter(t => t.kategorie === tab);
+  const filtered = db.todos.filter(t => t.kategorie === tab);
   const offen = filtered.filter(t => !t.erledigt).sort((a,b) => PRIO_ORDER[a.prio]-PRIO_ORDER[b.prio] || b.datum.localeCompare(a.datum));
   const done  = filtered.filter(t => t.erledigt).sort((a,b) => (b.erledigt_am||'').localeCompare(a.erledigt_am||''));
 
@@ -338,12 +329,6 @@ function togDone(btn) {
   btn.querySelector('.darr').classList.toggle('open');
   btn.nextElementSibling.classList.toggle('open');
 }
-
-// ── Tab ────────────────────────────────────────────────────────
-document.getElementById('tabs').addEventListener('click', e => {
-  const t = e.target.closest('[data-tab]');
-  if (t) { tab = t.dataset.tab; render(); }
-});
 
 // ── Aktionen ───────────────────────────────────────────────────
 async function toggle(id) {
