@@ -36,7 +36,7 @@
 
     /* Header */
     header{background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:10;padding-top:env(safe-area-inset-top,0px)}
-    .h-row{display:flex;align-items:center;justify-content:space-between;padding:12px 16px 10px}
+    .h-row{display:flex;align-items:center;justify-content:space-between;padding:12px calc(16px + env(safe-area-inset-right,0px)) 10px calc(16px + env(safe-area-inset-left,0px))}
     header h1{font-size:1.15rem;font-weight:700}
     .btn-add{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:7px 16px;font-size:.88rem;font-weight:600;cursor:pointer}
 
@@ -46,7 +46,7 @@
     .tab.active{color:var(--accent);border-color:var(--accent)}
 
     /* Main */
-    main{padding:12px 12px calc(16px + env(safe-area-inset-bottom,0px));max-width:600px;margin:0 auto}
+    main{padding:12px calc(12px + env(safe-area-inset-right,0px)) calc(16px + env(safe-area-inset-bottom,0px)) calc(12px + env(safe-area-inset-left,0px));max-width:600px;margin:0 auto}
 
     /* Prio-Gruppe */
     .prio-label{display:flex;align-items:center;gap:6px;font-size:.73rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;padding:10px 4px 4px}
@@ -137,8 +137,6 @@
     </div>
     <div class="tabs" id="tabs">
       <div class="tab active" data-tab="pka">PKA</div>
-      <div class="tab" data-tab="privat">Privat</div>
-      <div class="tab" data-tab="arbeit">Arbeit</div>
       <div class="tab" data-tab="alle">Alle</div>
     </div>
   </header>
@@ -159,14 +157,6 @@
         <button class="seg-b" data-v="hoch"    onclick="setPrio('hoch')">🔴 Hoch</button>
         <button class="seg-b on" data-v="niedrig" onclick="setPrio('niedrig')">⚪ Niedrig</button>
         <button class="seg-b" data-v="mittel"  onclick="setPrio('mittel')">🟡 Mittel</button>
-      </div>
-    </div>
-    <div class="form-row">
-      <label>Kategorie</label>
-      <div class="seg" id="m-kat">
-        <button class="seg-b on" data-v="pka"    onclick="setKat('pka')">PKA</button>
-        <button class="seg-b"    data-v="privat"  onclick="setKat('privat')">Privat</button>
-        <button class="seg-b"    data-v="arbeit"  onclick="setKat('arbeit')">Arbeit</button>
       </div>
     </div>
     <div class="form-row">
@@ -296,12 +286,12 @@ function render() {
     });
   }
 
-  let h = '', num = 1;
+  let h = '';
   for (const p of ['hoch','mittel','niedrig']) {
     if (!g[p].length) continue;
     const dot = p==='hoch'?'ph':p==='mittel'?'pm':'pn';
     h += `<div class="prio-label" data-prio="${p}"><span class="pdot ${dot}"></span>${PRIO_LBL[p]}</div>`;
-    g[p].forEach(t => { h += card(t, num++); });
+    g[p].forEach(t => { h += card(t); });
   }
   if (done.length) {
     h += `<div class="done-sec"><button class="done-tog" onclick="togDone(this)"><span class="darr">▶</span> Erledigt (${done.length})</button><div class="done-list">${done.map(card).join('')}</div></div>`;
@@ -320,17 +310,18 @@ function faellBadge(f, fu, erledigt) {
   return `<span class="fbadge fb-future">📅 ${df}${uhr}</span>`;
 }
 
-function card(t, num) {
+function card(t) {
   const d = t.datum ? t.datum.split('-').reverse().join('.') : '';
   const pb = t.prio==='hoch'?'bh':t.prio==='mittel'?'bm':'bn';
   const kb = tab==='alle' ? `<span class="kbadge">${KAT_LBL[t.kategorie]||t.kategorie}</span>` : '';
   const fb = faellBadge(t.faelligkeit, t.faelligkeit_uhrzeit, t.erledigt);
+  const nr = t.nr != null ? `<span class="cnum">#${t.nr}</span>` : '';
   return `<div class="card${t.erledigt?' done':''}" data-id="${t.id}" data-prio="${t.prio||'niedrig'}" onclick="showEdit('${t.id}')">
     <div class="drag-handle" onclick="event.stopPropagation()">⠿</div>
     <div class="chk${t.erledigt?' on':''}" onclick="event.stopPropagation();toggle('${t.id}')"></div>
     <div class="cbody">
       <div class="ctext">${esc(t.aufgabe)}</div>
-      <div class="cmeta">${num!=null?`<span class="cnum">#${num}</span>`:''}<span class="cdate">${d}</span><span class="pbadge ${pb}">${PRIO_LBL[t.prio||'niedrig']}</span>${kb}${fb}</div>
+      <div class="cmeta">${nr}<span class="cdate">${d}</span><span class="pbadge ${pb}">${PRIO_LBL[t.prio||'niedrig']}</span>${kb}${fb}</div>
     </div>
     <div class="cacts">
       <button class="bico" onclick="event.stopPropagation();del('${t.id}')" title="Löschen">🗑</button>
@@ -406,8 +397,9 @@ async function saveModal() {
     const t = db.todos.find(x => x.id === editId);
     if (t) { t.aufgabe = aufgabe; t.prio = mPrio; t.kategorie = mKat; t.faelligkeit = faelligkeit; t.faelligkeit_uhrzeit = faelligkeit_uhrzeit; }
   } else {
+    const nextNr = Math.max(0, ...db.todos.map(t => t.nr || 0)) + 1;
     db.todos.push({ id:crypto.randomUUID(), datum:new Date().toISOString().split('T')[0],
-      aufgabe, prio:mPrio, kategorie:mKat, erledigt:false, erledigt_am:null, faelligkeit, faelligkeit_uhrzeit });
+      aufgabe, prio:mPrio, kategorie:'pka', erledigt:false, erledigt_am:null, faelligkeit, faelligkeit_uhrzeit, nr:nextNr });
   }
   closeModal(); render(); await save();
 }
