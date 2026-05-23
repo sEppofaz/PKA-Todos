@@ -156,14 +156,7 @@
       <label>Fälligkeit <span style="font-weight:400;color:var(--text2)">(optional)</span></label>
       <div style="display:flex;gap:8px">
         <input type="date" id="m-faell" style="flex:1">
-        <select id="m-faell-h" style="flex:0 0 auto;width:68px;padding:10px 6px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:1rem">
-          <option value="">--</option>
-          <option>00</option><option>01</option><option>02</option><option>03</option><option>04</option><option>05</option><option>06</option><option>07</option><option>08</option><option>09</option><option>10</option><option>11</option><option>12</option><option>13</option><option>14</option><option>15</option><option>16</option><option>17</option><option>18</option><option>19</option><option>20</option><option>21</option><option>22</option><option>23</option>
-        </select>
-        <span style="color:var(--text2);align-self:center">:</span>
-        <select id="m-faell-m" style="flex:0 0 auto;width:60px;padding:10px 6px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:1rem">
-          <option>00</option><option>15</option><option>30</option><option>45</option>
-        </select>
+        <input type="time" id="m-faell-uhr" style="flex:0 0 auto;width:110px">
       </div>
     </div>
     <div class="mbtns">
@@ -357,8 +350,6 @@ function showAdd() {
   document.getElementById('m-title').textContent = 'Neues Todo';
   document.getElementById('m-text').value = '';
   document.getElementById('m-faell').value = '';
-  document.getElementById('m-faell-h').value = '';
-  document.getElementById('m-faell-m').value = '00';
   mPrio = 'niedrig'; mKat = tab === 'alle' ? 'pka' : tab; mFaell = '';
   seg('m-prio', mPrio); seg('m-kat', mKat);
   document.getElementById('modal').classList.add('open');
@@ -371,10 +362,7 @@ function showEdit(id) {
   document.getElementById('m-title').textContent = 'Todo bearbeiten';
   document.getElementById('m-text').value = t.aufgabe;
   document.getElementById('m-faell').value = t.faelligkeit || '';
-  const _uhr = t.faelligkeit_uhrzeit || '';
-  const [_h, _m] = _uhr ? _uhr.split(':') : ['', '00'];
-  document.getElementById('m-faell-h').value = _h;
-  document.getElementById('m-faell-m').value = _m || '00';
+  document.getElementById('m-faell-uhr').value = t.faelligkeit_uhrzeit || '';
   mPrio = t.prio || 'niedrig'; mKat = t.kategorie || 'pka'; mFaell = t.faelligkeit || ''; mFaellUhr = t.faelligkeit_uhrzeit || '';
   seg('m-prio', mPrio); seg('m-kat', mKat);
   document.getElementById('modal').classList.add('open');
@@ -390,9 +378,7 @@ async function saveModal() {
   if (!aufgabe) { document.getElementById('m-text').style.borderColor = 'var(--hoch)'; return; }
   document.getElementById('m-text').style.borderColor = '';
   const faelligkeit = document.getElementById('m-faell').value || null;
-  const _fh = document.getElementById('m-faell-h').value;
-  const _fm = document.getElementById('m-faell-m').value;
-  const faelligkeit_uhrzeit = faelligkeit && _fh ? `${_fh}:${_fm}` : null;
+  const faelligkeit_uhrzeit = faelligkeit ? (document.getElementById('m-faell-uhr').value || null) : null;
   if (editId) {
     const t = db.todos.find(x => x.id === editId);
     if (t) { t.aufgabe = aufgabe; t.prio = mPrio; t.kategorie = mKat; t.faelligkeit = faelligkeit; t.faelligkeit_uhrzeit = faelligkeit_uhrzeit; }
