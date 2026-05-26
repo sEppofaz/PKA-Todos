@@ -42,7 +42,7 @@ git add . && git commit -m "Beschreibung" && git push
 ```
 
 - **`nr`**: Stabile 3-stellige Nummer (100, 101, …). Einmalig vergeben, nie geändert. App zeigt `#nr` an. Bei neuen Todos: `Math.max(...todos.map(t => t.nr||0)) + 1`. Claude und App referenzieren mit `#nr`.
-- **`kategorie`**: Nur noch `pka` (Privat/Arbeit-Tabs entfernt, 2026-05-22).
+- **`kategorie`**: `pka` | `privat` | `arbeit` (Tabs wieder eingeführt 2026-05-26).
 - **`order`**: Manuelle Sortierreihenfolge (ganze Zahl, DOM-global); fehlt → Sortierung nach Datum. Wird via Drag & Drop gesetzt.
 - **`faelligkeit`**: Optional; `pka_todos_reminder.py` (Cron alle 15 Min) meldet fällige/überfällige Todos per Telegram.
 
@@ -50,7 +50,7 @@ git add . && git commit -m "Beschreibung" && git push
 
 ## App-Funktionen
 
-- **Tabs:** PKA / Alle (Privat + Arbeit entfernt, 2026-05-22)
+- **Tabs:** PKA / Privat / Arbeit (wieder eingeführt 2026-05-26). Aktiver Tab filtert die Ansicht; neues Todo übernimmt aktiven Tab als Kategorie.
 - **Prio-Gruppen:** Hoch / Mittel / Niedrig (innerhalb per Drag & Drop sortierbar)
 - **Karte antippen** → Bearbeiten-Modal
 - **Checkbox** → Todo abhaken (ohne Edit-Modal zu öffnen)
@@ -64,7 +64,9 @@ git add . && git commit -m "Beschreibung" && git push
 
 ## Telegram-Integration
 
-Beliebiger Text an den privaten Telegram-Bot → landet in `Todos.json` als `kategorie: pka`.
+Beliebiger Text → `kategorie: pka`. Mit `#privat` oder `#arbeit` **irgendwo im Text** → entsprechende Kategorie; Hashtag wird aus dem Todo-Text entfernt.
+Beispiele: `Zahnarzt Termin #privat` oder `#arbeit Angebot schreiben` oder `Meeting #arbeit morgen`.
+Außerdem: Bot setzt jetzt korrekte `nr` (max+1) beim Anlegen via Telegram.
 
 **Fälligkeits-Erinnerungen:** `pka_todos_reminder.py` auf Hetzner Server (alle 15 Min via Cron).
 - Mit `faelligkeit_uhrzeit`: Erinnerung 15 Min vorher
@@ -86,3 +88,4 @@ Beliebiger Text an den privaten Telegram-Bot → landet in `Todos.json` als `kat
 - Modal schwebt **zentriert** (`align-items:center; justify-content:center`) – kein Bottom-Sheet
 - Grund: Fälligkeits-Datumsfeld wurde am unteren Bildschirmrand abgeschnitten (Mac-Browser)
 - `max-height:90svh; overflow-y:auto` → scrollbar auf kleinen Bildschirmen
+- **iOS Zoom-Pitfall:** Input-Felder brauchen `font-size:1rem` (≥16px) – iOS zoomt automatisch rein bei <16px und kehrt nach Speichern nicht zurück.

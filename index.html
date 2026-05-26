@@ -103,6 +103,12 @@
     .btn-pri{flex:2;padding:11px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:.9rem;font-weight:600;cursor:pointer}
     .btn-wide{width:100%;padding:11px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:.9rem;font-weight:600;cursor:pointer}
 
+    /* Tabs */
+    .tabs{display:flex;border-bottom:1px solid var(--border);background:var(--bg2);overflow-x:auto;scrollbar-width:none;padding:0 calc(16px + env(safe-area-inset-right,0px)) 0 calc(16px + env(safe-area-inset-left,0px))}
+    .tabs::-webkit-scrollbar{display:none}
+    .tab-b{padding:10px 16px;border:none;background:none;color:var(--text2);font-size:.88rem;font-weight:500;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;flex-shrink:0;line-height:1.3}
+    .tab-b.on{color:var(--accent);border-bottom-color:var(--accent);font-weight:600}
+
     /* Modal */
     .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;align-items:center;justify-content:center;padding:16px}
     .overlay.open{display:flex}
@@ -132,6 +138,11 @@
       <h1>PKA Todos</h1>
       <button class="btn-add" onclick="showAdd()">+ Neu</button>
     </div>
+    <div class="tabs">
+      <button class="tab-b on" data-t="pka"    onclick="setTab('pka')">💻 PKA</button>
+      <button class="tab-b"    data-t="privat"  onclick="setTab('privat')">🏠 Privat</button>
+      <button class="tab-b"    data-t="arbeit"  onclick="setTab('arbeit')">💼 Arbeit</button>
+    </div>
   </header>
   <main id="list"></main>
 </div>
@@ -150,6 +161,14 @@
         <button class="seg-b" data-v="hoch"    onclick="setPrio('hoch')">🔴 Hoch</button>
         <button class="seg-b on" data-v="niedrig" onclick="setPrio('niedrig')">⚪ Niedrig</button>
         <button class="seg-b" data-v="mittel"  onclick="setPrio('mittel')">🟡 Mittel</button>
+      </div>
+    </div>
+    <div class="form-row">
+      <label>Kategorie</label>
+      <div class="seg" id="m-kat">
+        <button class="seg-b on" data-v="pka"    onclick="setKat('pka')">💻 PKA</button>
+        <button class="seg-b"    data-v="privat"  onclick="setKat('privat')">🏠 Privat</button>
+        <button class="seg-b"    data-v="arbeit"  onclick="setKat('arbeit')">💼 Arbeit</button>
       </div>
     </div>
     <div class="form-row">
@@ -325,6 +344,12 @@ const esc = s => (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g
 const show = id => document.getElementById(id).style.display = '';
 const hide = id => document.getElementById(id).style.display = 'none';
 
+function setTab(t) {
+  tab = t;
+  document.querySelectorAll('.tab-b').forEach(b => b.classList.toggle('on', b.dataset.t === t));
+  render();
+}
+
 function togDone(btn) {
   btn.querySelector('.darr').classList.toggle('open');
   btn.nextElementSibling.classList.toggle('open');
@@ -350,7 +375,7 @@ function showAdd() {
   document.getElementById('m-title').textContent = 'Neues Todo';
   document.getElementById('m-text').value = '';
   document.getElementById('m-faell').value = '';
-  mPrio = 'niedrig'; mKat = tab === 'alle' ? 'pka' : tab; mFaell = '';
+  mPrio = 'niedrig'; mKat = tab; mFaell = '';
   seg('m-prio', mPrio); seg('m-kat', mKat);
   document.getElementById('modal').classList.add('open');
   setTimeout(() => document.getElementById('m-text').focus(), 100);
@@ -385,7 +410,7 @@ async function saveModal() {
   } else {
     const nextNr = Math.max(0, ...db.todos.map(t => t.nr || 0)) + 1;
     db.todos.push({ id:crypto.randomUUID(), datum:new Date().toISOString().split('T')[0],
-      aufgabe, prio:mPrio, kategorie:'pka', erledigt:false, erledigt_am:null, faelligkeit, faelligkeit_uhrzeit, nr:nextNr });
+      aufgabe, prio:mPrio, kategorie:mKat, erledigt:false, erledigt_am:null, faelligkeit, faelligkeit_uhrzeit, nr:nextNr });
   }
   closeModal(); render(); await save();
 }
