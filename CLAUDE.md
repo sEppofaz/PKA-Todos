@@ -68,6 +68,12 @@ Beliebiger Text → `kategorie: pka`. Mit `#privat` oder `#arbeit` **irgendwo im
 Beispiele: `Zahnarzt Termin #privat` oder `#arbeit Angebot schreiben` oder `Meeting #arbeit morgen`.
 Außerdem: Bot setzt jetzt korrekte `nr` (max+1) beim Anlegen via Telegram.
 
+**Siri/Apple Watch – Webhook-Endpoint:**
+`POST https://umbenennen.duckdns.org/webhook/todo`
+Header: `X-Token: <TODO_WEBHOOK_SECRET aus secrets.env>`
+Body: `{"text": "Todo-Text #privat"}`
+Gleiche Hashtag-Logik wie Telegram. Shortcut-Name auf iPhone: „Todo" → „Hey Siri, Todo Zahnarzt Termin #privat"
+
 **Fälligkeits-Erinnerungen:** `pka_todos_reminder.py` auf Hetzner Server (alle 15 Min via Cron).
 - Mit `faelligkeit_uhrzeit`: Erinnerung 15 Min vorher
 - Ohne Uhrzeit + überfällige: täglich beim 08:00-Lauf
