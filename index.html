@@ -104,9 +104,8 @@
     .btn-wide{width:100%;padding:11px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:.9rem;font-weight:600;cursor:pointer}
 
     /* Tabs */
-    .tabs{display:flex;border-bottom:1px solid var(--border);background:var(--bg2);overflow-x:auto;scrollbar-width:none;padding:0 calc(16px + env(safe-area-inset-right,0px)) 0 calc(16px + env(safe-area-inset-left,0px))}
-    .tabs::-webkit-scrollbar{display:none}
-    .tab-b{padding:10px 16px;border:none;background:none;color:var(--text2);font-size:.88rem;font-weight:500;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;flex-shrink:0;line-height:1.3}
+    .tabs{display:flex;border-bottom:1px solid var(--border);background:var(--bg2)}
+    .tab-b{flex:1;padding:10px 8px;border:none;background:none;color:var(--text2);font-size:.88rem;font-weight:500;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;line-height:1.3;text-align:center}
     .tab-b.on{color:var(--accent);border-bottom-color:var(--accent);font-weight:600}
 
     /* Modal */
@@ -139,9 +138,9 @@
       <button class="btn-add" onclick="showAdd()">+ Neu</button>
     </div>
     <div class="tabs">
-      <button class="tab-b on" data-t="pka"    onclick="setTab('pka')">💻 PKA</button>
-      <button class="tab-b"    data-t="privat"  onclick="setTab('privat')">🏠 Privat</button>
-      <button class="tab-b"    data-t="arbeit"  onclick="setTab('arbeit')">💼 Arbeit</button>
+      <button class="tab-b on" data-t="pka"    onclick="setTab('pka')">PKA</button>
+      <button class="tab-b"    data-t="privat"  onclick="setTab('privat')">Privat</button>
+      <button class="tab-b"    data-t="arbeit"  onclick="setTab('arbeit')">Arbeit</button>
     </div>
   </header>
   <main id="list"></main>
