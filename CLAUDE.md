@@ -8,7 +8,7 @@
 - **Deployment:** `git push` → GitHub Pages automatisch
 - **Datendatei:** `/Apps/Claude/Todo-App/Todos.json` in Dropbox (SSOT)
 - **Dropbox App-Key:** `s2ggv6zysmzn7fa` (gleicher wie Messwerte- und Rauchmelder-App)
-- **Service Worker Cache:** `pka-todos-v9` (in `sw.js` hochzählen bei neuer Version – nur nötig bei Breaking Changes in Assets/Icons/Manifest, nicht bei `index.html`-Änderungen da Network-first)
+- **Service Worker Cache:** `pka-todos-v10` (in `sw.js` hochzählen bei neuer Version – nur nötig bei Breaking Changes in Assets/Icons/Manifest, nicht bei `index.html`-Änderungen da Network-first)
 
 ### Deployment-Flow
 
@@ -51,7 +51,7 @@ git add . && git commit -m "Beschreibung" && git push
 ## App-Funktionen
 
 - **Tabs:** PKA / Privat / Arbeit (wieder eingeführt 2026-05-26). Aktiver Tab filtert die Ansicht; neues Todo übernimmt aktiven Tab als Kategorie.
-- **Prio-Gruppen:** Hoch / Mittel / Niedrig (innerhalb per Drag & Drop sortierbar)
+- **Prio-Gruppen:** Hoch / Mittel / Niedrig (innerhalb per Drag & Drop sortierbar) – **Mittel ist Standard** beim Anlegen eines neuen Todos
 - **Karte antippen** → Bearbeiten-Modal
 - **Checkbox** → Todo abhaken (ohne Edit-Modal zu öffnen)
 - **🗑-Button** → Löschen
@@ -94,4 +94,4 @@ Gleiche Hashtag-Logik wie Telegram. Shortcut-Name auf iPhone: „Todo" → „He
 - Modal schwebt **zentriert** (`align-items:center; justify-content:center`) – kein Bottom-Sheet
 - Grund: Fälligkeits-Datumsfeld wurde am unteren Bildschirmrand abgeschnitten (Mac-Browser)
 - `max-height:90svh; overflow-y:auto` → scrollbar auf kleinen Bildschirmen
-- **iOS Zoom-Pitfall:** Input-Felder brauchen `font-size:1rem` (≥16px) – iOS zoomt automatisch rein bei <16px und kehrt nach Speichern nicht zurück.
+- **iOS Zoom-Pitfall:** Input-Felder brauchen `font-size:1rem` (≥16px) – iOS zoomt automatisch rein bei <16px und kehrt nach Speichern nicht zurück. **Fix (2026-05-30):** `closeModal()` setzt Viewport-Meta kurz auf `maximum-scale=1` und entfernt das per `requestAnimationFrame` wieder → erzwingt Zoom-Reset ohne Pinch-Zoom dauerhaft zu sperren.
