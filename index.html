@@ -158,8 +158,8 @@
       <label>Priorität</label>
       <div class="seg" id="m-prio">
         <button class="seg-b" data-v="hoch"    onclick="setPrio('hoch')">🔴 Hoch</button>
-        <button class="seg-b on" data-v="niedrig" onclick="setPrio('niedrig')">⚪ Niedrig</button>
-        <button class="seg-b" data-v="mittel"  onclick="setPrio('mittel')">🟡 Mittel</button>
+        <button class="seg-b on" data-v="mittel"  onclick="setPrio('mittel')">🟡 Mittel</button>
+        <button class="seg-b" data-v="niedrig" onclick="setPrio('niedrig')">⚪ Niedrig</button>
       </div>
     </div>
     <div class="form-row">
@@ -200,7 +200,7 @@ const KAT_LBL      = { pka:'PKA', privat:'Privat', arbeit:'Arbeit' };
 // ── State ──────────────────────────────────────────────────────
 let dbxAccess = '', dbxRefresh = '', dbxKey = APP_KEY;
 let db = { v:1, todos:[] };
-let tab = 'pka', editId = null, mPrio = 'niedrig', mKat = 'pka', mFaell = '', mFaellUhr = '';
+let tab = 'pka', editId = null, mPrio = 'mittel', mKat = 'pka', mFaell = '', mFaellUhr = '';
 
 try { dbxRefresh = localStorage.getItem(LS_REFRESH) || ''; } catch(e) {}
 try { dbxKey = localStorage.getItem(LS_KEY) || APP_KEY; } catch(e) {}
@@ -374,7 +374,7 @@ function showAdd() {
   document.getElementById('m-title').textContent = 'Neues Todo';
   document.getElementById('m-text').value = '';
   document.getElementById('m-faell').value = '';
-  mPrio = 'niedrig'; mKat = tab; mFaell = '';
+  mPrio = 'mittel'; mKat = tab; mFaell = '';
   seg('m-prio', mPrio); seg('m-kat', mKat);
   document.getElementById('modal').classList.add('open');
   setTimeout(() => document.getElementById('m-text').focus(), 100);
