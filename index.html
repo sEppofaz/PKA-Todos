@@ -279,7 +279,7 @@ async function save() { await dbxPut(DBX_FILE, db); }
 // ── Render ─────────────────────────────────────────────────────
 function render() {
   const filtered = db.todos.filter(t => t.kategorie === tab);
-  const offen = filtered.filter(t => !t.erledigt).sort((a,b) => PRIO_ORDER[a.prio]-PRIO_ORDER[b.prio] || b.datum.localeCompare(a.datum));
+  const offen = filtered.filter(t => !t.erledigt).sort((a,b) => (PRIO_ORDER[a.prio]??9)-(PRIO_ORDER[b.prio]??9) || (b.datum||'').localeCompare(a.datum||''));
   const done  = filtered.filter(t => t.erledigt).sort((a,b) => (b.erledigt_am||'').localeCompare(a.erledigt_am||''));
 
   if (!offen.length && !done.length) {
