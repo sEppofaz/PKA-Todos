@@ -81,6 +81,23 @@ Gleiche Hashtag-Logik wie Telegram. Shortcut-Name auf iPhone: „Todo" → „He
 
 ---
 
+## Schema-Pflicht (Pitfall)
+
+- **Claude Code muss beim Anlegen neuer Todos ZWINGEND das Schema aus dieser CLAUDE.md verwenden** – insbesondere `aufgabe` (nicht `text`), `datum` (nicht `erstellt`), `prio`, `nr`.
+- Abweichendes Schema (z.B. zusätzliche Felder `text`, `erstellt`, `projekt`) bricht `render()` mit `null.localeCompare()` → gesamter Tab bleibt leer.
+- Vorfall 2026-06-08: Todo mit Fremdschema von Claude Code selbst angelegt → PKA-Tab komplett unsichtbar.
+
+---
+
+## Service Worker (Pitfall)
+
+- `reg.update()` + `controllerchange` + `location.reload()` verursacht einen Endlos-Reload-Loop, wenn GitHub Pages CDN `sw.js` auch nur minimal anders ausliefert.
+- Fix (2026-06-22): SW-Registrierung auf reines `register()` reduziert – der SW ruft `self.skipWaiting()` bereits selbst in seinem Install-Handler auf.
+- `load()` hat einen `_loading`-Guard um Race Conditions zwischen `init()` und `visibilitychange`-Listener zu verhindern.
+- `dbxGet`/`dbxPut` haben einen `_retried`-Flag um Endlos-Rekursion bei dauerhaft ungültigem Token zu verhindern.
+
+---
+
 ## Token-Handling (Pitfall)
 
 - Dropbox Offline-Token (`token_access_type: offline`) läuft nach 12 Monaten Inaktivität ab
