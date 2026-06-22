@@ -246,13 +246,13 @@ async function refresh() {
 }
 
 // ── Dropbox I/O ────────────────────────────────────────────────
-async function dbxGet(path) {
+async function dbxGet(path, _retried = false) {
   const r = await fetch(DL_URL, { headers:{ Authorization:'Bearer '+dbxAccess, 'Dropbox-API-Arg':JSON.stringify({path}) }});
-  if (r.status === 401) { await refresh(); return dbxGet(path); }
+  if (r.status === 401 && !_retried) { const ok = await refresh(); if (!ok) return null; return dbxGet(path, true); }
   return r.ok ? r : null;
 }
 
-async function dbxPut(path, data) {
+async function dbxPut(path, data, _retried = false) {
   const body = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
   const r = await fetch(UP_URL, {
     method:'POST',
@@ -260,18 +260,25 @@ async function dbxPut(path, data) {
               'Dropbox-API-Arg':JSON.stringify({path, mode:'overwrite', autorename:false}) },
     body
   });
-  if (r.status === 401) { await refresh(); return dbxPut(path, data); }
+  if (r.status === 401 && !_retried) { const ok = await refresh(); if (!ok) return; return dbxPut(path, data, true); }
 }
 
 // ── Load / Save ────────────────────────────────────────────────
+let _loading = false;
 async function load() {
+  if (_loading) return;
+  _loading = true;
   show('loading'); hide('app');
-  const r = await dbxGet(DBX_FILE);
-  if (r) {
-    try { db = await r.json(); } catch(e) { db = {v:1,todos:[]}; }
+  try {
+    const r = await dbxGet(DBX_FILE);
+    if (r) {
+      try { db = await r.json(); } catch(e) { db = {v:1,todos:[]}; }
+    }
+    hide('loading'); show('app');
+    render();
+  } finally {
+    _loading = false;
   }
-  hide('loading'); show('app');
-  render();
 }
 
 async function save() { await dbxPut(DBX_FILE, db); }
@@ -496,18 +503,7 @@ document.addEventListener('visibilitychange', () => {
 
 <script>
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('./sw.js').then(reg => {
-    reg.update();
-    reg.addEventListener('updatefound', () => {
-      const w = reg.installing;
-      w.addEventListener('statechange', () => {
-        if (w.state === 'installed' && navigator.serviceWorker.controller) {
-          navigator.serviceWorker.addEventListener('controllerchange', () => location.reload());
-          w.postMessage({ type: 'SKIP_WAITING' });
-        }
-      });
-    });
-  }).catch(e => console.warn('[sw]', e));
+  navigator.serviceWorker.register('./sw.js').catch(e => console.warn('[sw]', e));
 }
 </script>
 </body>
