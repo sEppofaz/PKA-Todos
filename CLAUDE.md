@@ -51,7 +51,7 @@ git add . && git commit -m "Beschreibung" && git push
 ## App-Funktionen
 
 - **Tabs:** PKA / Privat / Arbeit (wieder eingeführt 2026-05-26). Aktiver Tab filtert die Ansicht; neues Todo übernimmt aktiven Tab als Kategorie.
-- **Prio-Gruppen:** Hoch / Mittel / Niedrig (innerhalb per Drag & Drop sortierbar) – **Mittel ist Standard** beim Anlegen eines neuen Todos
+- **Prio-Gruppen:** Hoch / Mittel / Niedrig (innerhalb per Drag & Drop sortierbar), Default „Mittel" beim Anlegen (Claude-Regel dazu: `PKA/CLAUDE.md`)
 - **Karte antippen** → Bearbeiten-Modal
 - **Checkbox** → Todo abhaken (ohne Edit-Modal zu öffnen)
 - **🗑-Button** → Löschen
@@ -95,6 +95,13 @@ Gleiche Hashtag-Logik wie Telegram. Shortcut-Name auf iPhone: „Todo" → „He
 - Fix (2026-06-22): SW-Registrierung auf reines `register()` reduziert – der SW ruft `self.skipWaiting()` bereits selbst in seinem Install-Handler auf.
 - `load()` hat einen `_loading`-Guard um Race Conditions zwischen `init()` und `visibilitychange`-Listener zu verhindern.
 - `dbxGet`/`dbxPut` haben einen `_retried`-Flag um Endlos-Rekursion bei dauerhaft ungültigem Token zu verhindern.
+- **Kein network-first für HTML** (anders als bei den Hetzner-Apps) – SW cached alles inkl. `index.html`. Nach jeder CSS/HTML-Änderung `CACHE`-Konstante in `sw.js` hochzählen, sonst sehen installierte PWAs das Update nicht.
+
+---
+
+## Tab-Leiste (Standard ab 2026-08-14)
+
+`.tabs` (PKA/Privat/Arbeit) ist jetzt am unteren Bildschirmrand fixiert statt im Header (`PKA/BKM/PWA-Standards.md` „Tab-Leiste am unteren Bildschirmrand", Variante A). `z-index:60` bewusst zwischen `header` (10) und `.overlay`-Modal (100) gewählt – Modal muss über der Tab-Leiste liegen. `main`-Padding-bottom von `16px` auf `68px` (+ safe-area) erhöht.
 
 ---
 
