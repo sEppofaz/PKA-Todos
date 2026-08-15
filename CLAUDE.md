@@ -51,6 +51,7 @@ git add . && git commit -m "Beschreibung" && git push
 ## App-Funktionen
 
 - **Tabs:** PKA / Privat / Arbeit (wieder eingeführt 2026-05-26). Aktiver Tab filtert die Ansicht; neues Todo übernimmt aktiven Tab als Kategorie.
+- **Suche (seit 2026-08-15):** 🔍-Icon im Header öffnet Suchfeld. Filtert `db.todos` live, kategorieübergreifend, inkl. erledigter Todos (Substring-Match auf `aufgabe`, case-insensitive). Trefferkarten zeigen Kategorie-Badge, Erledigt-Sektion klappt bei Treffern automatisch auf. Drag & Drop ist während der Suche deaktiviert (Reihenfolge über Kategorien hinweg unsinnig). Tab-Wechsel beendet die Suche automatisch.
 - **Prio-Gruppen:** Hoch / Mittel / Niedrig (innerhalb per Drag & Drop sortierbar), Default „Mittel" beim Anlegen (Claude-Regel dazu: `PKA/CLAUDE.md`)
 - **Karte antippen** → Bearbeiten-Modal
 - **Checkbox** → Todo abhaken (ohne Edit-Modal zu öffnen)
@@ -95,7 +96,7 @@ Gleiche Hashtag-Logik wie Telegram. Shortcut-Name auf iPhone: „Todo" → „He
 - Fix (2026-06-22): SW-Registrierung auf reines `register()` reduziert – der SW ruft `self.skipWaiting()` bereits selbst in seinem Install-Handler auf.
 - `load()` hat einen `_loading`-Guard um Race Conditions zwischen `init()` und `visibilitychange`-Listener zu verhindern.
 - `dbxGet`/`dbxPut` haben einen `_retried`-Flag um Endlos-Rekursion bei dauerhaft ungültigem Token zu verhindern.
-- **Kein network-first für HTML** (anders als bei den Hetzner-Apps) – SW cached alles inkl. `index.html`. Nach jeder CSS/HTML-Änderung `CACHE`-Konstante in `sw.js` hochzählen, sonst sehen installierte PWAs das Update nicht.
+- **Korrektur (2026-08-15):** Diese Zeile war veraltet und widersprach dem tatsächlichen Code. `index.html` läuft **network-first** (fetch → Cache-Fallback nur bei Offline), siehe `sw.js`. CSS/HTML-Änderungen sind daher sofort ohne App-Neustart sichtbar. `CACHE`-Konstante nur bei Breaking Changes an `manifest.json`/Icons hochzählen (Assets laufen Cache-first).
 
 ---
 
