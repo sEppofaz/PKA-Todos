@@ -51,7 +51,7 @@ git add . && git commit -m "Beschreibung" && git push
 ## App-Funktionen
 
 - **Tabs:** PKA / Privat / Arbeit (wieder eingeführt 2026-05-26). Aktiver Tab filtert die Ansicht; neues Todo übernimmt aktiven Tab als Kategorie.
-- **Suche (seit 2026-08-15):** 🔍-Icon im Header öffnet Suchfeld. Filtert `db.todos` live, kategorieübergreifend, inkl. erledigter Todos (Substring-Match auf `aufgabe`, case-insensitive). Trefferkarten zeigen Kategorie-Badge, Erledigt-Sektion klappt bei Treffern automatisch auf. Drag & Drop ist während der Suche deaktiviert (Reihenfolge über Kategorien hinweg unsinnig). Tab-Wechsel beendet die Suche automatisch.
+- **Suche (seit 2026-08-15):** 🔍-Icon im Header öffnet Suchfeld. Filtert `db.todos` live, kategorieübergreifend, inkl. erledigter Todos (Substring-Match auf `aufgabe`, case-insensitive). Trefferkarten zeigen Kategorie-Badge, Erledigt-Sektion klappt bei Treffern automatisch auf. Drag & Drop ist während der Suche deaktiviert (Reihenfolge über Kategorien hinweg unsinnig). Tab-Wechsel beendet die Suche automatisch. Nutzt das `.search-wrap`/`#search-clear`-Pflichtpattern aus `PKA/BKM/PWA-Standards.md` (Suchfeld-Lösch-Button-Standard).
 - **Prio-Gruppen:** Hoch / Mittel / Niedrig (innerhalb per Drag & Drop sortierbar), Default „Mittel" beim Anlegen (Claude-Regel dazu: `PKA/CLAUDE.md`)
 - **Karte antippen** → Bearbeiten-Modal
 - **Checkbox** → Todo abhaken (ohne Edit-Modal zu öffnen)
