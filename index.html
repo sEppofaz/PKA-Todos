@@ -41,9 +41,14 @@
     header h1{font-size:1.15rem;font-weight:700}
     .btn-add{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:7px 16px;font-size:.88rem;font-weight:600;cursor:pointer}
     .btn-icon{background:none;border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:.95rem;cursor:pointer;color:var(--text)}
-    .search-row{display:none;gap:8px;padding:0 calc(16px + env(safe-area-inset-right,0px)) 10px calc(16px + env(safe-area-inset-left,0px))}
+    .search-row{display:none;padding:0 calc(16px + env(safe-area-inset-right,0px)) 10px calc(16px + env(safe-area-inset-left,0px))}
     .search-row.open{display:flex}
-    .search-row input{flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:1rem;font-family:inherit}
+    /* Suchfeld-Lösch-Button-Standard (BKM/PWA-Standards.md, Pflicht seit 2026-08-10) */
+    .search-wrap{position:relative;flex:1;display:flex;min-width:0}
+    .search-wrap input{flex:1;padding:8px 34px 8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:1rem;font-family:inherit}
+    .search-wrap input::-webkit-search-cancel-button{-webkit-appearance:none}
+    #search-clear{display:none;position:absolute;right:6px;top:50%;transform:translateY(-50%);width:24px;height:24px;align-items:center;justify-content:center;border:none;border-radius:50%;background:var(--border);color:var(--text2);font-size:14px;line-height:1;cursor:pointer;padding:0}
+    #search-clear:active{background:var(--text2);color:var(--bg2)}
 
 
     /* Main */
@@ -145,8 +150,10 @@
       </div>
     </div>
     <div class="search-row" id="search-row">
-      <input type="text" id="search-input" placeholder="Suche in allen Todos…" oninput="onSearch(this.value)">
-      <button class="btn-icon" onclick="closeSearch()" title="Schließen">✕</button>
+      <div class="search-wrap">
+        <input type="search" id="search-input" placeholder="Suche in allen Todos…" oninput="onSearch()">
+        <button id="search-clear" type="button" onclick="clearSearch()" aria-label="Suche löschen">✕</button>
+      </div>
     </div>
   </header>
   <main id="list"></main>
@@ -376,6 +383,7 @@ function setTab(t) {
   if (searchQuery) {
     searchQuery = '';
     document.getElementById('search-input').value = '';
+    document.getElementById('search-clear').style.display = 'none';
     document.getElementById('search-row').classList.remove('open');
   }
   render();
@@ -397,13 +405,25 @@ function toggleSearch() {
 function closeSearch() {
   document.getElementById('search-row').classList.remove('open');
   document.getElementById('search-input').value = '';
+  document.getElementById('search-clear').style.display = 'none';
   searchQuery = '';
   render();
 }
 
-function onSearch(v) {
+function onSearch() {
+  const v = document.getElementById('search-input').value;
+  document.getElementById('search-clear').style.display = v ? 'flex' : 'none';
   searchQuery = v;
   render();
+}
+
+function clearSearch() {
+  const input = document.getElementById('search-input');
+  input.value = '';
+  document.getElementById('search-clear').style.display = 'none';
+  searchQuery = '';
+  render();
+  input.focus();
 }
 
 // ── Aktionen ───────────────────────────────────────────────────
