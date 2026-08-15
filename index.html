@@ -40,6 +40,10 @@
     .h-row{display:flex;align-items:center;justify-content:space-between;padding:12px calc(16px + env(safe-area-inset-right,0px)) 10px calc(16px + env(safe-area-inset-left,0px))}
     header h1{font-size:1.15rem;font-weight:700}
     .btn-add{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:7px 16px;font-size:.88rem;font-weight:600;cursor:pointer}
+    .btn-icon{background:none;border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:.95rem;cursor:pointer;color:var(--text)}
+    .search-row{display:none;gap:8px;padding:0 calc(16px + env(safe-area-inset-right,0px)) 10px calc(16px + env(safe-area-inset-left,0px))}
+    .search-row.open{display:flex}
+    .search-row input{flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:1rem;font-family:inherit}
 
 
     /* Main */
@@ -135,7 +139,14 @@
   <header>
     <div class="h-row">
       <h1>PKA Todos</h1>
-      <button class="btn-add" onclick="showAdd()">+ Neu</button>
+      <div style="display:flex;gap:6px">
+        <button class="btn-icon" onclick="toggleSearch()" title="Suche">🔍</button>
+        <button class="btn-add" onclick="showAdd()">+ Neu</button>
+      </div>
+    </div>
+    <div class="search-row" id="search-row">
+      <input type="text" id="search-input" placeholder="Suche in allen Todos…" oninput="onSearch(this.value)">
+      <button class="btn-icon" onclick="closeSearch()" title="Schließen">✕</button>
     </div>
   </header>
   <main id="list"></main>
@@ -201,6 +212,7 @@ const KAT_LBL      = { pka:'PKA', privat:'Privat', arbeit:'Arbeit' };
 let dbxAccess = '', dbxRefresh = '', dbxKey = APP_KEY;
 let db = { v:1, todos:[] };
 let tab = 'pka', editId = null, mPrio = 'mittel', mKat = 'pka', mFaell = '', mFaellUhr = '';
+let searchQuery = '';
 
 try { dbxRefresh = localStorage.getItem(LS_REFRESH) || ''; } catch(e) {}
 try { dbxKey = localStorage.getItem(LS_KEY) || APP_KEY; } catch(e) {}
@@ -285,12 +297,17 @@ async function save() { await dbxPut(DBX_FILE, db); }
 
 // ── Render ─────────────────────────────────────────────────────
 function render() {
-  const filtered = db.todos.filter(t => t.kategorie === tab);
+  const q = searchQuery.trim().toLowerCase();
+  const filtered = q
+    ? db.todos.filter(t => (t.aufgabe||'').toLowerCase().includes(q))
+    : db.todos.filter(t => t.kategorie === tab);
   const offen = filtered.filter(t => !t.erledigt).sort((a,b) => (PRIO_ORDER[a.prio]??9)-(PRIO_ORDER[b.prio]??9) || (b.datum||'').localeCompare(a.datum||''));
   const done  = filtered.filter(t => t.erledigt).sort((a,b) => (b.erledigt_am||'').localeCompare(a.erledigt_am||''));
 
   if (!offen.length && !done.length) {
-    document.getElementById('list').innerHTML = '<div class="empty">Keine Todos.<br>+ Neu zum Hinzufügen.</div>';
+    document.getElementById('list').innerHTML = q
+      ? '<div class="empty">Keine Treffer.</div>'
+      : '<div class="empty">Keine Todos.<br>+ Neu zum Hinzufügen.</div>';
     return;
   }
 
@@ -311,7 +328,8 @@ function render() {
     g[p].forEach(t => { h += card(t); });
   }
   if (done.length) {
-    h += `<div class="done-sec"><button class="done-tog" onclick="togDone(this)"><span class="darr">▶</span> Erledigt (${done.length})</button><div class="done-list">${done.map(card).join('')}</div></div>`;
+    const openCls = q ? ' open' : '';
+    h += `<div class="done-sec"><button class="done-tog" onclick="togDone(this)"><span class="darr${openCls}">▶</span> Erledigt (${done.length})</button><div class="done-list${openCls}">${done.map(card).join('')}</div></div>`;
   }
   document.getElementById('list').innerHTML = h;
   initDrag();
@@ -330,11 +348,13 @@ function faellBadge(f, fu, erledigt) {
 function card(t) {
   const d = t.datum ? t.datum.split('-').reverse().join('.') : '';
   const pb = t.prio==='hoch'?'bh':t.prio==='mittel'?'bm':'bn';
-  const kb = tab==='alle' ? `<span class="kbadge">${KAT_LBL[t.kategorie]||t.kategorie}</span>` : '';
+  const searching = !!searchQuery.trim();
+  const kb = searching ? `<span class="kbadge">${KAT_LBL[t.kategorie]||t.kategorie}</span>` : '';
   const fb = faellBadge(t.faelligkeit, t.faelligkeit_uhrzeit, t.erledigt);
   const nr = t.nr != null ? `<span class="cnum">#${t.nr}</span>` : '';
+  const handle = searching ? '' : '<div class="drag-handle" onclick="event.stopPropagation()">⠿</div>';
   return `<div class="card${t.erledigt?' done':''}" data-id="${t.id}" data-prio="${t.prio||'niedrig'}" onclick="showEdit('${t.id}')">
-    <div class="drag-handle" onclick="event.stopPropagation()">⠿</div>
+    ${handle}
     <div class="chk${t.erledigt?' on':''}" onclick="event.stopPropagation();toggle('${t.id}')"></div>
     <div class="cbody">
       <div class="ctext">${esc(t.aufgabe)}</div>
@@ -353,12 +373,37 @@ const hide = id => document.getElementById(id).style.display = 'none';
 function setTab(t) {
   tab = t;
   document.querySelectorAll('.tab-b').forEach(b => b.classList.toggle('on', b.dataset.t === t));
+  if (searchQuery) {
+    searchQuery = '';
+    document.getElementById('search-input').value = '';
+    document.getElementById('search-row').classList.remove('open');
+  }
   render();
 }
 
 function togDone(btn) {
   btn.querySelector('.darr').classList.toggle('open');
   btn.nextElementSibling.classList.toggle('open');
+}
+
+// ── Suche ──────────────────────────────────────────────────────
+function toggleSearch() {
+  const row = document.getElementById('search-row');
+  if (row.classList.contains('open')) { closeSearch(); return; }
+  row.classList.add('open');
+  setTimeout(() => document.getElementById('search-input').focus(), 50);
+}
+
+function closeSearch() {
+  document.getElementById('search-row').classList.remove('open');
+  document.getElementById('search-input').value = '';
+  searchQuery = '';
+  render();
+}
+
+function onSearch(v) {
+  searchQuery = v;
+  render();
 }
 
 // ── Aktionen ───────────────────────────────────────────────────
