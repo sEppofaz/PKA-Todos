@@ -71,6 +71,14 @@ zerlegt den Text in `{head, rest}`; `card()` rendert `head` in `.ctext` und `res
 
 **Reine Anzeigelogik – `Todos.json` bleibt unverändert.** Kein `titel`-Feld, siehe `ADR/ADR-001`.
 
+**Optik (geändert 2026-09-27):** `.cmore` sieht aus wie `.ctext` – `.9rem`, `line-height:1.4`,
+geerbtes `var(--text)`, **keine** Einrückung und kein linker Rahmen, nur `margin-top:6px` als
+Trenner. Grund: der verborgene Teil ist der eigentliche Inhalt, keine Fußnote; die alte gedimmte
+Zitatblock-Optik war am Handy zu kontrastarm (Dark Mode 4,27:1 → jetzt 12,80:1). Wer hier wieder
+eine eigene Textfarbe/-größe einführt, macht genau das rückgängig. Das Durchstreichen erledigter
+Todos gilt für **beide** Teile (`.card.done .ctext,.card.done .cmore`) – sonst wäre die Karte
+halb durchgestrichen.
+
 Regeln von `splitAufgabe()`:
 - Texte ≤ `MIN_SPLIT` (110 Zeichen) bleiben ungeteilt – kein Chevron.
 - Überschrift = erste Zeile (wenn 15–90 Zeichen), sonst erstes echtes Satzende, sonst harter
@@ -97,6 +105,16 @@ Regeln von `splitAufgabe()`:
 `index.html` per Regex ziehen, in einer `vm`-Sandbox mit DOM-Stubs ausführen, `card(t)` über alle
 Todos aus `Todos.json` aufrufen. Beim Umbau von `card()` wieder so verifizieren.
 
+**Pitfall beim Testrezept:** `expanded` ist mit `let` deklariert und liegt daher **nicht** als
+Property auf dem Sandbox-Objekt (`sandbox.expanded` ist `undefined`) – mit
+`vm.runInContext('expanded', sandbox)` holen. Funktionsdeklarationen wie `card` sind dagegen direkt
+am Sandbox-Objekt erreichbar.
+
+**Optik im Browser prüfen:** `file://`-URLs lässt die Chrome-Erweiterung nicht zu, und die Live-App
+zu öffnen schreibt beim Start einen Dropbox-Token-Refresh in Josefs `localStorage`. Stattdessen:
+CSS + gerenderte Karten in eine eigene Testseite schreiben, per `python3 -m http.server` auf
+`127.0.0.1` ausliefern, dort messen (Handybreite per iframe) – und den Server danach beenden.
+
 ---
 
 ## Telegram-Integration
@@ -110,6 +128,11 @@ Außerdem: Bot setzt jetzt korrekte `nr` (max+1) beim Anlegen via Telegram.
 Header: `X-Token: <TODO_WEBHOOK_SECRET aus secrets.env>`
 Body: `{"text": "Todo-Text #privat"}`
 Gleiche Hashtag-Logik wie Telegram. Shortcut-Name auf iPhone: „Todo" → „Hey Siri, Todo Zahnarzt Termin #privat"
+
+**Prio (geändert 2026-09-27, Todo #409):** Per Telegram oder Siri angelegte Todos bekommen
+`prio: "mittel"` (vorher `"niedrig"`). `_save_todo()` setzt außerdem `faelligkeit` und
+`faelligkeit_uhrzeit` explizit auf `None`. Quelle: `services/telegram/routes.py` im
+**Vereinskalender-Repo** (stellt den `rename-webhook`-Service), nicht in diesem Repo.
 
 **Fälligkeits-Erinnerungen:** `pka_todos_reminder.py` auf Hetzner Server (alle 15 Min via Cron).
 - Mit `faelligkeit_uhrzeit`: Erinnerung 15 Min vorher
