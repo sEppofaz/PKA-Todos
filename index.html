@@ -68,6 +68,11 @@
     .cbody{flex:1;min-width:0}
     .ctext{font-size:.9rem;line-height:1.4;word-break:break-word}
     .card.done .ctext{text-decoration:line-through}
+    .cmore{display:none;font-size:.84rem;line-height:1.45;color:var(--text2);word-break:break-word;white-space:pre-wrap;margin-top:6px;padding-left:8px;border-left:2px solid var(--border)}
+    .card.open .cmore{display:block}
+    .cexp{background:none;border:none;cursor:pointer;color:var(--text2);padding:3px 6px 0 0;margin-top:2px;display:inline-flex;align-items:center;line-height:1}
+    .cexp svg{transition:transform .15s}
+    .card.open .cexp svg{transform:rotate(180deg)}
     .cmeta{display:flex;align-items:center;gap:5px;margin-top:4px;flex-wrap:wrap}
     .cdate{font-size:.72rem;color:var(--text2)}
     .cnum{font-size:.72rem;font-weight:700;color:var(--text2);background:var(--border);border-radius:4px;padding:1px 5px;flex-shrink:0}
@@ -221,10 +226,68 @@ const ICON_PATHS = {
   refreshCw: `<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>`,
   search: `<path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/>`,
   trash2: `<path d="M10 11v6"/><path d="M14 11v6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>`,
+  chevronDown: `<path d="m6 9 6 6 6-6"/>`,
 };
 function icon(name, size=18, filled=false) {
   const p = ICON_PATHS[name] || "";
   return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="${filled?"currentColor":"none"}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+}
+
+// ── Überschrift + Detailtext ───────────────────────────────────
+// Lange Aufgabentexte werden auf der Karte zu einer Überschrift gekürzt,
+// der Rest klappt auf. Reine Anzeigelogik – Todos.json bleibt unverändert.
+const MAX_HEAD  = 90;   // harte Obergrenze der Überschrift
+const MIN_SPLIT = 110;  // kürzere Texte bleiben ungeteilt
+const MIN_HEAD  = 15;   // kürzere Überschriften sagen nichts aus ("CV:")
+const ABBR = new Set(['ca','bzw','inkl','evtl','ggf','usw','vgl','Nr','Abs','Art','z','B','u','a','d','h','Jan','Feb','Mrz','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez','St','Dr','bspw','max','min','Mio','Mrd','Tel','Str']);
+
+function splitAufgabe(txt) {
+  const t = (txt || '').trim();
+  if (t.length <= MIN_SPLIT) return { head: t, rest: '' };
+
+  let cut = -1;
+
+  // 1) Erste Zeile, wenn sie als Überschrift taugt
+  const nl = t.indexOf('\n');
+  if (nl >= MIN_HEAD && nl <= MAX_HEAD) cut = nl;
+
+  // 2) Sonst: erstes echtes Satzende
+  if (cut < 0) {
+    const re = /[.!?…]+/g;
+    let m;
+    while ((m = re.exec(t)) !== null) {
+      const end = m.index + m[0].length;
+      if (end > MAX_HEAD + 30) break;
+      const after = t.slice(end, end + 2);
+      if (!/^\s/.test(after)) continue;                   // Punkt mitten im Wort
+      if (!/^\s[A-ZÄÖÜ0-9„"(•*-]/.test(after)) continue;  // danach klein → Abkürzung
+      if (/\d$/.test(t.slice(0, m.index))) continue;      // Datum: "15.07." / "2."
+      const word = (t.slice(0, m.index).match(/([A-Za-zÄÖÜäöüß]+)$/) || [])[1];
+      if (word && ABBR.has(word)) continue;               // bekannte Abkürzung
+      if (end < MIN_HEAD) continue;
+      cut = end;
+      break;
+    }
+  }
+
+  // 3) Kein Satzende in Reichweite → an Wortgrenze kappen
+  if (cut < 0 || cut > MAX_HEAD + 30) {
+    const slice = t.slice(0, MAX_HEAD);
+    const sp = slice.lastIndexOf(' ');
+    const at = sp > MAX_HEAD * 0.5 ? sp : MAX_HEAD;
+    return { head: t.slice(0, at).trim().replace(/\s+/g, ' ') + '…', rest: t.slice(at).trim() };
+  }
+
+  const head = t.slice(0, cut).trim().replace(/\s+/g, ' ');
+  const rest = t.slice(cut).trim();
+  return rest ? { head, rest } : { head: t, rest: '' };
+}
+
+function toggleMore(id, ev) {
+  ev.stopPropagation();
+  expanded.has(id) ? expanded.delete(id) : expanded.add(id);
+  const card = document.querySelector(`.card[data-id="${id}"]`);
+  if (card) card.classList.toggle('open', expanded.has(id));
 }
 
 // ── State ──────────────────────────────────────────────────────
@@ -232,6 +295,7 @@ let dbxAccess = '', dbxRefresh = '', dbxKey = APP_KEY;
 let db = { v:1, todos:[] };
 let tab = 'pka', editId = null, mPrio = 'mittel', mKat = 'pka', mFaell = '', mFaellUhr = '';
 let searchQuery = '';
+let expanded = new Set();   // aufgeklappte Karten (überlebt render())
 
 try { dbxRefresh = localStorage.getItem(LS_REFRESH) || ''; } catch(e) {}
 try { dbxKey = localStorage.getItem(LS_KEY) || APP_KEY; } catch(e) {}
@@ -372,11 +436,21 @@ function card(t) {
   const fb = faellBadge(t.faelligkeit, t.faelligkeit_uhrzeit, t.erledigt);
   const nr = t.nr != null ? `<span class="cnum">#${t.nr}</span>` : '';
   const handle = searching ? '' : '<div class="drag-handle" onclick="event.stopPropagation()">⠿</div>';
-  return `<div class="card${t.erledigt?' done':''}" data-id="${t.id}" data-prio="${t.prio||'niedrig'}" onclick="showEdit('${t.id}')">
+  const { head, rest } = splitAufgabe(t.aufgabe);
+  // Bei aktiver Suche aufklappen, wenn der Treffer nur im verborgenen Teil steht
+  const q = searchQuery.trim().toLowerCase();
+  const hitInRest = !!q && !head.toLowerCase().includes(q) && rest.toLowerCase().includes(q);
+  const open = rest && (expanded.has(t.id) || hitInRest);
+  const more = rest
+    ? `<div class="cmore">${esc(rest)}</div>
+       <button class="cexp" onclick="toggleMore('${t.id}',event)" aria-expanded="${open?'true':'false'}" title="Mehr anzeigen">${icon('chevronDown',15)}</button>`
+    : '';
+  return `<div class="card${t.erledigt?' done':''}${open?' open':''}" data-id="${t.id}" data-prio="${t.prio||'niedrig'}" onclick="showEdit('${t.id}')">
     ${handle}
     <div class="chk${t.erledigt?' on':''}" onclick="event.stopPropagation();toggle('${t.id}')"></div>
     <div class="cbody">
-      <div class="ctext">${esc(t.aufgabe)}</div>
+      <div class="ctext">${esc(head)}</div>
+      ${more}
       <div class="cmeta">${nr}<span class="cdate">${d}</span><span class="pbadge ${pb}">${PRIO_LBL[t.prio||'niedrig']}</span>${kb}${fb}</div>
     </div>
     <div class="cacts">
