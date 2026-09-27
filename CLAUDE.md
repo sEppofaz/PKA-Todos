@@ -63,6 +63,42 @@ git add . && git commit -m "Beschreibung" && git push
 
 ---
 
+## Überschrift + Detailtext auf der Karte (seit 2026-09-27, Todo #305)
+
+Lange `aufgabe`-Texte werden auf der Karte nicht mehr vollständig angezeigt. `splitAufgabe(txt)`
+zerlegt den Text in `{head, rest}`; `card()` rendert `head` in `.ctext` und `rest` in `.cmore`
+(eingeklappt, Chevron-Button `.cexp`, Lucide `chevron-down`).
+
+**Reine Anzeigelogik – `Todos.json` bleibt unverändert.** Kein `titel`-Feld, siehe `ADR/ADR-001`.
+
+Regeln von `splitAufgabe()`:
+- Texte ≤ `MIN_SPLIT` (110 Zeichen) bleiben ungeteilt – kein Chevron.
+- Überschrift = erste Zeile (wenn 15–90 Zeichen), sonst erstes echtes Satzende, sonst harter
+  Schnitt an der Wortgrenze bei `MAX_HEAD` (90) mit „…".
+- **Kein Satzende** nach einer Ziffer (`15.07.`, `2. Sep.`), bei bekannten Abkürzungen (`ABBR`-Set:
+  `ca`, `bzw`, `inkl`, Monatskürzel …) oder wenn danach kein Großbuchstabe/Ziffer/Listenzeichen folgt.
+- Ein Satzende wird bis `MAX_HEAD + 30` akzeptiert – ein vollständiger Satz ist besser als ein
+  abgeschnittener.
+- `head` wird auf eine Zeile normalisiert (`\s+` → Leerzeichen), `rest` behält Zeilenumbrüche
+  (`white-space:pre-wrap`).
+
+**Pitfalls:**
+- Der aufgeklappte Zustand liegt in `let expanded = new Set()` (Todo-IDs), **nicht** im DOM –
+  sonst würde ihn jedes `render()` (Abhaken, Drag & Drop, Auto-Reload) zurücksetzen.
+- Die ganze Karte hat `onclick="showEdit(...)"`. Der Chevron-Button **muss** `event.stopPropagation()`
+  aufrufen (`toggleMore(id, ev)`), sonst öffnet Aufklappen das Bearbeiten-Modal.
+- **Suche:** Der Filter in `render()` läuft weiter über den Volltext. Steht der Treffer nur im
+  verborgenen Teil, klappt `card()` die Karte automatisch auf (`hitInRest`) – sonst wäre der
+  gefundene Begriff unsichtbar.
+- Beim Prüfen der gerenderten Klasse: erledigte Todos ergeben `class="card done open"`, nicht
+  `card open`.
+
+**Test:** `card()` lässt sich ohne Browser gegen den echten Bestand laufen – Script-Blöcke aus
+`index.html` per Regex ziehen, in einer `vm`-Sandbox mit DOM-Stubs ausführen, `card(t)` über alle
+Todos aus `Todos.json` aufrufen. Beim Umbau von `card()` wieder so verifizieren.
+
+---
+
 ## Telegram-Integration
 
 Beliebiger Text → `kategorie: pka`. Mit `#privat` oder `#arbeit` **irgendwo im Text** → entsprechende Kategorie; Hashtag wird aus dem Todo-Text entfernt.
