@@ -87,6 +87,7 @@ Gleiche Hashtag-Logik wie Telegram. Shortcut-Name auf iPhone: „Todo" → „He
 - **Claude Code muss beim Anlegen neuer Todos ZWINGEND das Schema aus dieser CLAUDE.md verwenden** – insbesondere `aufgabe` (nicht `text`), `datum` (nicht `erstellt`), `prio`, `nr`.
 - Abweichendes Schema (z.B. zusätzliche Felder `text`, `erstellt`, `projekt`) bricht `render()` mit `null.localeCompare()` → gesamter Tab bleibt leer.
 - Vorfall 2026-06-08: Todo mit Fremdschema von Claude Code selbst angelegt → PKA-Tab komplett unsichtbar.
+- **Vorfall 2026-09-27 (gleiche Regel, zweites Mal gebrochen):** Über mehrere Sessions hinweg wurden Todos mit `prioritaet` statt `prio` angelegt – am Ende **66 Einträge**. Die App bricht dabei nicht sichtbar ab, sondern greift still auf `t.prio || 'niedrig'` zurück: Alle betroffenen Todos erschienen als **„niedrig"**, obwohl 60 davon als „mittel" und eines als „hoch" gemeint waren. Da „niedrig" für Josef das *irgendwann*-Fach ist, bewirkte der Fehler genau das Gegenteil der Prio-Regel aus `PKA/CLAUDE.md`. Am 2026-09-27 migriert (61 umbenannt, bei 5 Einträgen mit beiden Feldern das Altfeld entfernt – `prio` gewinnt, weil die App es zuletzt geschrieben hat). **Lehre:** Der stille Fallback ist gefährlicher als der harte Crash von 2026-06-08 – ein falscher Feldname fällt hier nicht sofort auf. Vor dem Schreiben in `Todos.json` **immer diese CLAUDE.md lesen**, nie das Schema aus einem Stichproben-Eintrag der Datei ableiten (der kann selbst falsch sein).
 
 ---
 
