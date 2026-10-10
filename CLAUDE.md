@@ -57,6 +57,7 @@ git add . && git commit -m "Beschreibung" && git push
 - **Checkbox** → Todo abhaken (ohne Edit-Modal zu öffnen)
 - **🗑-Button** → Löschen
 - **⠿ Handle** → Drag & Drop innerhalb der Prio-Gruppe (Pointer Events, iOS-kompatibel)
+- **Fälligkeits-Uhrzeit (seit 2026-10-10):** zwei Auswahlfelder `#m-faell-h`/`#m-faell-m` (Minuten 00/15/30/45) statt `<input type=time>` – das iPhone-Rad ignoriert `step`. `setUhr()`/`getUhr()`; eine ältere krumme Zeit bleibt als Zusatzoption, Stunde ohne Minute → `HH:00`. Gespeichert wird weiter `HH:MM`. `showAdd()` setzt die Uhrzeit jetzt auch zurück (vorher blieb die des zuletzt bearbeiteten Todos stehen).
 - **Fälligkeits-Badges:** ⚠️ überfällig (rot) · 📅 Heute (orange) · 📅 Datum (grau)
 - **Erledigt-Sektion** zugeklappt (aufklappbar)
 - **Auto-Reload:** `visibilitychange`-Listener ruft `load()` auf wenn App in den Vordergrund kommt → immer aktuell, kein manuelles Reload nötig

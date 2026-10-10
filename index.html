@@ -112,6 +112,10 @@
     .fb-late{color:var(--hoch);background:color-mix(in srgb,var(--hoch) 15%,transparent)}
     .fb-future{color:var(--text2);background:var(--border)}
     input[type=date]{color-scheme:light dark}
+    /* Uhrzeit in 15-Minuten-Schritten (2026-10-10): eigene Auswahl, das iPhone-Rad ignoriert step */
+    .form-row select{padding:0 26px 0 10px;border:1px solid var(--border);border-radius:8px;background:var(--bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%238e8e93' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 8px center;color:var(--text);font-size:1rem;font-family:inherit;-webkit-appearance:none;appearance:none}
+    .form-row input:not([type=checkbox]),.form-row select{height:44px;box-sizing:border-box}
+    .uhr{display:flex;align-items:center;gap:4px;flex:0 0 auto}.uhr select{width:64px}
     .mbtns{display:flex;gap:8px;margin-top:16px}
     .btn-sec{flex:1;padding:11px;border:1px solid var(--border);border-radius:8px;background:none;color:var(--text);font-size:.9rem;cursor:pointer}
     .btn-pri{flex:2;padding:11px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:.9rem;font-weight:600;cursor:pointer}
@@ -198,7 +202,9 @@
       <label>Fälligkeit <span style="font-weight:400;color:var(--text2)">(optional)</span></label>
       <div style="display:flex;gap:8px">
         <input type="date" id="m-faell" style="flex:1">
-        <input type="time" id="m-faell-uhr" style="flex:0 0 auto;width:110px">
+        <div class="uhr" role="group" aria-label="Uhrzeit">
+          <select id="m-faell-h" aria-label="Stunde"></select><span aria-hidden="true">:</span><select id="m-faell-m" aria-label="Minute"></select>
+        </div>
       </div>
     </div>
     <div class="mbtns">
@@ -527,11 +533,24 @@ async function del(id) {
 }
 
 // ── Modal ──────────────────────────────────────────────────────
+// Uhrzeit: Stunde 00–23, Minute 00/15/30/45; eine ältere krumme Zeit bleibt als Zusatzoption erhalten
+const MINUTEN = ['00', '15', '30', '45'];
+function setUhr(v) {
+  const [h, m] = (v || '').split(':');
+  const opt = (werte, sel) => '<option value="">–</option>' + werte.map(x => `<option${x === sel ? ' selected' : ''}>${x}</option>`).join('');
+  document.getElementById('m-faell-h').innerHTML = opt([...Array(24)].map((_, i) => String(i).padStart(2, '0')), h);
+  document.getElementById('m-faell-m').innerHTML = opt(m && !MINUTEN.includes(m) ? [...MINUTEN, m].sort() : MINUTEN, m);
+}
+function getUhr() {
+  const h = document.getElementById('m-faell-h').value, m = document.getElementById('m-faell-m').value;
+  return h ? `${h}:${m || '00'}` : null;
+}
 function showAdd() {
   editId = null;
   document.getElementById('m-title').textContent = 'Neues Todo';
   document.getElementById('m-text').value = '';
   document.getElementById('m-faell').value = '';
+  setUhr('');
   mPrio = 'mittel'; mKat = tab; mFaell = '';
   seg('m-prio', mPrio); seg('m-kat', mKat);
   document.getElementById('modal').classList.add('open');
@@ -544,7 +563,7 @@ function showEdit(id) {
   document.getElementById('m-title').textContent = 'Todo bearbeiten';
   document.getElementById('m-text').value = t.aufgabe;
   document.getElementById('m-faell').value = t.faelligkeit || '';
-  document.getElementById('m-faell-uhr').value = t.faelligkeit_uhrzeit || '';
+  setUhr(t.faelligkeit_uhrzeit || '');
   mPrio = t.prio || 'niedrig'; mKat = t.kategorie || 'pka'; mFaell = t.faelligkeit || ''; mFaellUhr = t.faelligkeit_uhrzeit || '';
   seg('m-prio', mPrio); seg('m-kat', mKat);
   document.getElementById('modal').classList.add('open');
@@ -566,7 +585,7 @@ async function saveModal() {
   if (!aufgabe) { document.getElementById('m-text').style.borderColor = 'var(--hoch)'; return; }
   document.getElementById('m-text').style.borderColor = '';
   const faelligkeit = document.getElementById('m-faell').value || null;
-  const faelligkeit_uhrzeit = faelligkeit ? (document.getElementById('m-faell-uhr').value || null) : null;
+  const faelligkeit_uhrzeit = faelligkeit ? getUhr() : null;
   if (editId) {
     const t = db.todos.find(x => x.id === editId);
     if (t) { t.aufgabe = aufgabe; t.prio = mPrio; t.kategorie = mKat; t.faelligkeit = faelligkeit; t.faelligkeit_uhrzeit = faelligkeit_uhrzeit; }
