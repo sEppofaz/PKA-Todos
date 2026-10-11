@@ -545,6 +545,16 @@ function getUhr() {
   const h = document.getElementById('m-faell-h').value, m = document.getElementById('m-faell-m').value;
   return h ? `${h}:${m || '00'}` : null;
 }
+// Uhrzeit ohne Datum ging früher still verloren (#448): das leere Datumsfeld sieht auf dem iPhone
+// ausgefüllt aus. Sobald eine Uhrzeit gewählt wird, steht deshalb sichtbar das heutige Datum drin.
+function heuteLokal() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+['m-faell-h', 'm-faell-m'].forEach(id => document.getElementById(id).addEventListener('change', () => {
+  const f = document.getElementById('m-faell');
+  if (getUhr() && !f.value) f.value = heuteLokal();
+}));
 function showAdd() {
   editId = null;
   document.getElementById('m-title').textContent = 'Neues Todo';
@@ -584,7 +594,7 @@ async function saveModal() {
   const aufgabe = document.getElementById('m-text').value.trim();
   if (!aufgabe) { document.getElementById('m-text').style.borderColor = 'var(--hoch)'; return; }
   document.getElementById('m-text').style.borderColor = '';
-  const faelligkeit = document.getElementById('m-faell').value || null;
+  const faelligkeit = document.getElementById('m-faell').value || (getUhr() ? heuteLokal() : null);
   const faelligkeit_uhrzeit = faelligkeit ? getUhr() : null;
   if (editId) {
     const t = db.todos.find(x => x.id === editId);
