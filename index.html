@@ -115,7 +115,10 @@
     /* Uhrzeit in 15-Minuten-Schritten (2026-10-10): eigene Auswahl, das iPhone-Rad ignoriert step */
     .form-row select{padding:0 26px 0 10px;border:1px solid var(--border);border-radius:8px;background:var(--bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%238e8e93' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 8px center;color:var(--text);font-size:1rem;font-family:inherit;-webkit-appearance:none;appearance:none}
     .form-row input:not([type=checkbox]),.form-row select{height:44px;box-sizing:border-box}
-    .uhr{display:flex;align-items:center;gap:4px;flex:0 0 auto}.uhr select{width:64px}
+    .uhr{flex:0 0 92px;width:92px;text-align:center}
+    /* iOS zeichnet Datumsfelder sonst höher als die übrigen Felder (Josef 2026-10-11, Bild) */
+    .form-row input[type=date]{-webkit-appearance:none;appearance:none;display:flex;align-items:center;min-width:0}
+    .form-row input[type=date]::-webkit-date-and-time-value{text-align:left;margin:0}
     .mbtns{display:flex;gap:8px;margin-top:16px}
     .btn-sec{flex:1;padding:11px;border:1px solid var(--border);border-radius:8px;background:none;color:var(--text);font-size:.9rem;cursor:pointer}
     .btn-pri{flex:2;padding:11px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:.9rem;font-weight:600;cursor:pointer}
@@ -202,9 +205,7 @@
       <label>Fälligkeit <span style="font-weight:400;color:var(--text2)">(optional)</span></label>
       <div style="display:flex;gap:8px">
         <input type="date" id="m-faell" style="flex:1">
-        <div class="uhr" role="group" aria-label="Uhrzeit">
-          <select id="m-faell-h" aria-label="Stunde"></select><span aria-hidden="true">:</span><select id="m-faell-m" aria-label="Minute"></select>
-        </div>
+        <input type="time" id="m-faell-uhr" class="uhr" aria-label="Uhrzeit">
       </div>
     </div>
     <div class="mbtns">
@@ -533,28 +534,20 @@ async function del(id) {
 }
 
 // ── Modal ──────────────────────────────────────────────────────
-// Uhrzeit: Stunde 00–23, Minute 00/15/30/45; eine ältere krumme Zeit bleibt als Zusatzoption erhalten
-const MINUTEN = ['00', '15', '30', '45'];
-function setUhr(v) {
-  const [h, m] = (v || '').split(':');
-  const opt = (werte, sel) => '<option value="">–</option>' + werte.map(x => `<option${x === sel ? ' selected' : ''}>${x}</option>`).join('');
-  document.getElementById('m-faell-h').innerHTML = opt([...Array(24)].map((_, i) => String(i).padStart(2, '0')), h);
-  document.getElementById('m-faell-m').innerHTML = opt(m && !MINUTEN.includes(m) ? [...MINUTEN, m].sort() : MINUTEN, m);
-}
-function getUhr() {
-  const h = document.getElementById('m-faell-h').value, m = document.getElementById('m-faell-m').value;
-  return h ? `${h}:${m || '00'}` : null;
-}
+// Uhrzeit (#454): Fenster in der Bildschirmmitte mit zwei Rädern, Start 12:00 (Baustein am Dateiende).
+// Gespeichert wird weiter `HH:MM`.
+function setUhr(v) { document.getElementById('m-faell-uhr').value = v || ''; }
+function getUhr() { return document.getElementById('m-faell-uhr').value || null; }
 // Uhrzeit ohne Datum ging früher still verloren (#448): das leere Datumsfeld sieht auf dem iPhone
 // ausgefüllt aus. Sobald eine Uhrzeit gewählt wird, steht deshalb sichtbar das heutige Datum drin.
 function heuteLokal() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
-['m-faell-h', 'm-faell-m'].forEach(id => document.getElementById(id).addEventListener('change', () => {
+document.getElementById('m-faell-uhr').addEventListener('change', () => {
   const f = document.getElementById('m-faell');
   if (getUhr() && !f.value) f.value = heuteLokal();
-}));
+});
 function showAdd() {
   editId = null;
   document.getElementById('m-title').textContent = 'Neues Todo';
@@ -685,6 +678,121 @@ document.addEventListener('visibilitychange', () => {
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./sw.js').catch(e => console.warn('[sw]', e));
 }
+</script>
+<!-- Uhrzeit-Fenster (#454): Kopie von Vereinskalender src/shared/uhrzeit_ui.py, Farben --bg2/--accent -->
+<style>
+.uhr-feld{cursor:pointer;caret-color:transparent}
+.uhr-bg{position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px}
+.uhr-box{box-sizing:border-box;background:var(--bg2,#2c2c2e);color:var(--text,#f2f2f7);border-radius:16px;padding:18px 18px 16px;width:100%;max-width:300px;
+  box-shadow:0 12px 40px rgba(0,0,0,.35);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.uhr-titel{font-size:17px;font-weight:700;text-align:center;margin:0 0 10px}
+.uhr-raeder{position:relative;display:flex;align-items:center;justify-content:center;gap:6px;height:200px}
+.uhr-band{position:absolute;left:0;right:0;top:80px;height:40px;border-radius:10px;pointer-events:none;
+  background:color-mix(in srgb,var(--accent,#0a84ff) 16%,transparent);border:1.5px solid var(--accent,#0a84ff)}
+.uhr-rad{box-sizing:border-box;position:relative;z-index:1;width:72px;height:200px;overflow-y:scroll;scroll-snap-type:y mandatory;padding:80px 0;
+  scrollbar-width:none;-webkit-overflow-scrolling:touch;outline:none;
+  -webkit-mask-image:linear-gradient(transparent,#000 30%,#000 70%,transparent);mask-image:linear-gradient(transparent,#000 30%,#000 70%,transparent)}
+.uhr-rad::-webkit-scrollbar{display:none}
+.uhr-z{height:40px;line-height:40px;text-align:center;font-size:22px;font-variant-numeric:tabular-nums;scroll-snap-align:center;cursor:pointer;user-select:none}
+.uhr-dp{position:relative;z-index:1;font-size:22px;font-weight:700}
+.uhr-knoepfe{display:flex;gap:8px;margin-top:14px}
+.uhr-knoepfe button{flex:1;height:36px;border-radius:8px;font:inherit;font-size:15px;font-weight:600;cursor:pointer;
+  border:1px solid var(--accent,#0a84ff);background:transparent;color:var(--accent,#0a84ff)}
+.uhr-knoepfe .uhr-ok{background:var(--accent,#0a84ff);color:#fff}
+</style>
+<script>
+(function(){
+  if(window.uhrAufbauen)return;
+  var ZH=40;
+  function pad(n){return (n<10?'0':'')+n;}
+  function wert(i){var v=(i.value||'').trim();return /^\d{1,2}:\d{2}/.test(v)?pad(+v.split(':')[0])+':'+v.split(':')[1].slice(0,2):'';}
+  function beginnFeld(i){
+    if(!i.form||!/_bis$/.test(i.name))return null;
+    var b=i.form.elements[i.name.replace(/_bis$/,'')];
+    return b&&b.value?b:null;
+  }
+  function startwert(i){
+    var v=wert(i);if(v)return v;
+    var b=beginnFeld(i);
+    if(b&&wert(b)){var w=wert(b);return pad((+w.slice(0,2)+2)%24)+w.slice(2);}
+    return '12:00';
+  }
+  function rad(werte,aktuell,label){
+    var d=document.createElement('div');d.className='uhr-rad';d.tabIndex=0;d.setAttribute('role','listbox');d.setAttribute('aria-label',label);
+    werte.forEach(function(w,k){
+      var z=document.createElement('div');z.className='uhr-z';z.textContent=w;z.setAttribute('role','option');
+      z.addEventListener('click',function(){d.scrollTo({top:k*ZH,behavior:'smooth'});});
+      d.appendChild(z);
+    });
+    d.addEventListener('keydown',function(e){
+      if(e.key!=='ArrowUp'&&e.key!=='ArrowDown')return;
+      e.preventDefault();d.scrollTop=(gewaehlt(d,true)+(e.key==='ArrowUp'?-1:1))*ZH;
+    });
+    d._w=werte;d._start=Math.max(0,werte.indexOf(aktuell));
+    return d;
+  }
+  function gewaehlt(d,alsIndex){
+    var k=Math.max(0,Math.min(d._w.length-1,Math.round(d.scrollTop/ZH)));
+    return alsIndex?k:d._w[k];
+  }
+  function oeffne(i){
+    var v=startwert(i),h=v.slice(0,2),m=v.slice(3,5);
+    var stunden=[],minuten=[];
+    for(var x=0;x<24;x++)stunden.push(pad(x));
+    for(x=0;x<60;x+=5)minuten.push(pad(x));
+    if(minuten.indexOf(m)<0){minuten.push(m);minuten.sort();}
+    var bg=document.createElement('div');bg.className='uhr-bg';
+    var box=document.createElement('div');box.className='uhr-box';box.setAttribute('role','dialog');box.setAttribute('aria-modal','true');
+    var lbl=(i.labels&&i.labels[0]?i.labels[0].textContent:'Uhrzeit').replace(/\(.*?\)|\*/g,'').trim()||'Uhrzeit';
+    box.setAttribute('aria-label',lbl+' wählen');
+    var t=document.createElement('div');t.className='uhr-titel';t.textContent=lbl+' wählen';
+    var r=document.createElement('div');r.className='uhr-raeder';
+    var band=document.createElement('div');band.className='uhr-band';
+    var rh=rad(stunden,h,'Stunde'),rm=rad(minuten,m,'Minute');
+    var dp=document.createElement('span');dp.className='uhr-dp';dp.textContent=':';
+    r.appendChild(band);r.appendChild(rh);r.appendChild(dp);r.appendChild(rm);
+    var kn=document.createElement('div');kn.className='uhr-knoepfe';
+    var ohne=document.createElement('button');ohne.type='button';ohne.textContent='Ohne Uhrzeit';
+    var ok=document.createElement('button');ok.type='button';ok.className='uhr-ok';ok.textContent='OK';
+    if(!i.required)kn.appendChild(ohne);
+    kn.appendChild(ok);
+    box.appendChild(t);box.appendChild(r);box.appendChild(kn);bg.appendChild(box);
+    document.body.appendChild(bg);
+    rh.scrollTop=rh._start*ZH;rm.scrollTop=rm._start*ZH;
+    rh.focus({preventScroll:true});
+    function zu(neu){
+      document.removeEventListener('keydown',taste,true);
+      bg.remove();
+      if(neu!==undefined&&neu!==i.value){
+        i.value=neu;
+        i.dispatchEvent(new Event('input',{bubbles:true}));
+        i.dispatchEvent(new Event('change',{bubbles:true}));
+      }
+      i.focus({preventScroll:true});
+    }
+    function taste(e){
+      if(e.key==='Escape'){e.preventDefault();zu();}
+      else if(e.key==='Enter'){e.preventDefault();zu(gewaehlt(rh)+':'+gewaehlt(rm));}
+    }
+    document.addEventListener('keydown',taste,true);
+    bg.addEventListener('click',function(e){if(e.target===bg)zu();});
+    ohne.addEventListener('click',function(){zu('');});
+    ok.addEventListener('click',function(){zu(gewaehlt(rh)+':'+gewaehlt(rm));});
+  }
+  function aufbauen(wurzel){
+    [].forEach.call((wurzel||document).querySelectorAll('input[type=time]'),function(i){
+      i.value=wert(i);
+      i.type='text';i.readOnly=true;i.setAttribute('inputmode','none');i.setAttribute('autocomplete','off');
+      i.setAttribute('aria-haspopup','dialog');i.classList.add('uhr-feld');
+      if(!i.placeholder)i.placeholder='--:--';
+      i.addEventListener('click',function(){oeffne(i);});
+      i.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();oeffne(i);}});
+    });
+  }
+  window.uhrAufbauen=aufbauen;
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){aufbauen();});
+  else aufbauen();
+})();
 </script>
 </body>
 </html>
