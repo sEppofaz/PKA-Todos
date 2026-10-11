@@ -695,6 +695,9 @@ if ('serviceWorker' in navigator) {
 .uhr-rad::-webkit-scrollbar{display:none}
 .uhr-z{height:40px;line-height:40px;text-align:center;font-size:22px;font-variant-numeric:tabular-nums;scroll-snap-align:center;cursor:pointer;user-select:none}
 .uhr-dp{position:relative;z-index:1;font-size:22px;font-weight:700}
+.uhr-tipp{box-sizing:border-box;display:block;width:100%;height:36px;margin:0 0 10px;padding:0 10px;border-radius:8px;text-align:center;
+  font:inherit;font-size:18px;font-variant-numeric:tabular-nums;border:1px solid var(--accent,#0a84ff);background:transparent;color:inherit}
+.uhr-hinweis{font-size:12px;opacity:.65;text-align:center;margin-top:6px}
 .uhr-knoepfe{display:flex;gap:8px;margin-top:14px}
 .uhr-knoepfe button{flex:1;height:36px;border-radius:8px;font:inherit;font-size:15px;font-weight:600;cursor:pointer;
   border:1px solid var(--accent,#0a84ff);background:transparent;color:var(--accent,#0a84ff)}
@@ -717,23 +720,39 @@ if ('serviceWorker' in navigator) {
     if(b&&wert(b)){var w=wert(b);return pad((+w.slice(0,2)+2)%24)+w.slice(2);}
     return '12:00';
   }
+  // Räder laufen im Kreis (v1.99): die Liste steht REP-mal hintereinander, man startet in der mittleren Kopie und
+  // wird nach dem Scrollen unbemerkt dorthin zurückgesetzt – über 00 steht 55, über 00 Uhr steht 23.
+  var REP=7,MITTE=3;
   function rad(werte,aktuell,label){
     var d=document.createElement('div');d.className='uhr-rad';d.tabIndex=0;d.setAttribute('role','listbox');d.setAttribute('aria-label',label);
-    werte.forEach(function(w,k){
+    var n=werte.length;
+    for(var r=0;r<REP;r++)werte.forEach(function(w,k){
       var z=document.createElement('div');z.className='uhr-z';z.textContent=w;z.setAttribute('role','option');
-      z.addEventListener('click',function(){d.scrollTo({top:k*ZH,behavior:'smooth'});});
+      var pos=r*n+k;
+      z.addEventListener('click',function(){d.scrollTo({top:pos*ZH,behavior:'smooth'});});
       d.appendChild(z);
     });
+    d._w=werte;d._n=n;d._start=Math.max(0,werte.indexOf(aktuell));
+    var t;
+    d.addEventListener('scroll',function(){clearTimeout(t);t=setTimeout(function(){mitte(d);},140);});
     d.addEventListener('keydown',function(e){
       if(e.key!=='ArrowUp'&&e.key!=='ArrowDown')return;
-      e.preventDefault();d.scrollTop=(gewaehlt(d,true)+(e.key==='ArrowUp'?-1:1))*ZH;
+      e.preventDefault();mitte(d);d.scrollTop+=(e.key==='ArrowUp'?-1:1)*ZH;if(d._sync)d._sync();
     });
-    d._w=werte;d._start=Math.max(0,werte.indexOf(aktuell));
     return d;
   }
-  function gewaehlt(d,alsIndex){
-    var k=Math.max(0,Math.min(d._w.length-1,Math.round(d.scrollTop/ZH)));
-    return alsIndex?k:d._w[k];
+  function index(d){return ((Math.round(d.scrollTop/ZH)%d._n)+d._n)%d._n;}
+  function mitte(d){var k=index(d),soll=(MITTE*d._n+k)*ZH;if(Math.abs(d.scrollTop-soll)>1)d.scrollTop=soll;}
+  function setze(d,wert){var k=d._w.indexOf(wert);if(k<0)return false;d.scrollTop=(MITTE*d._n+k)*ZH;return true;}
+  function gewaehlt(d){return d._w[index(d)];}
+  // Getippte Uhrzeit (Desktop): „1930“, „19:30“, „9.15“, „9“ → HH:MM, sonst ''
+  function getippt(text){
+    var t=String(text||'').trim().replace(/[.,h ]/g,':'),m;
+    if((m=/^(\d{1,2}):(\d{1,2})$/.exec(t))||(m=/^(\d{1,2})(\d{2})$/.exec(t))||(m=/^(\d{1,2})$/.exec(t))){
+      var h=+m[1],mi=m[2]===undefined?0:+m[2];
+      if(h<24&&mi<60)return pad(h)+':'+pad(mi);
+    }
+    return '';
   }
   function oeffne(i){
     var v=startwert(i),h=v.slice(0,2),m=v.slice(3,5);
@@ -741,11 +760,18 @@ if ('serviceWorker' in navigator) {
     for(var x=0;x<24;x++)stunden.push(pad(x));
     for(x=0;x<60;x+=5)minuten.push(pad(x));
     if(minuten.indexOf(m)<0){minuten.push(m);minuten.sort();}
+    var desktop=window.matchMedia&&matchMedia('(pointer:fine)').matches;
     var bg=document.createElement('div');bg.className='uhr-bg';
     var box=document.createElement('div');box.className='uhr-box';box.setAttribute('role','dialog');box.setAttribute('aria-modal','true');
     var lbl=(i.labels&&i.labels[0]?i.labels[0].textContent:'Uhrzeit').replace(/\(.*?\)|\*/g,'').trim()||'Uhrzeit';
     box.setAttribute('aria-label',lbl+' wählen');
     var t=document.createElement('div');t.className='uhr-titel';t.textContent=lbl+' wählen';
+    // Desktop (Maus/Touchpad): Uhrzeit auch tippen – Räder laufen mit; am Handy nur die Räder (Josef 2026-10-11)
+    var tipp=null;
+    if(desktop){
+      tipp=document.createElement('input');tipp.className='uhr-tipp';tipp.setAttribute('inputmode','numeric');
+      tipp.setAttribute('aria-label','Uhrzeit tippen, z. B. 1930');tipp.placeholder='z. B. 1930';tipp.value=v;tipp.autocomplete='off';
+    }
     var r=document.createElement('div');r.className='uhr-raeder';
     var band=document.createElement('div');band.className='uhr-band';
     var rh=rad(stunden,h,'Stunde'),rm=rad(minuten,m,'Minute');
@@ -756,10 +782,34 @@ if ('serviceWorker' in navigator) {
     var ok=document.createElement('button');ok.type='button';ok.className='uhr-ok';ok.textContent='OK';
     if(!i.required)kn.appendChild(ohne);
     kn.appendChild(ok);
-    box.appendChild(t);box.appendChild(r);box.appendChild(kn);bg.appendChild(box);
+    box.appendChild(t);if(tipp)box.appendChild(tipp);box.appendChild(r);
+    if(tipp){var hw=document.createElement('div');hw.className='uhr-hinweis';hw.textContent='Tippen oder ↑ ↓ – Enter übernimmt, Esc schließt';box.appendChild(hw);}
+    box.appendChild(kn);bg.appendChild(box);
     document.body.appendChild(bg);
-    rh.scrollTop=rh._start*ZH;rm.scrollTop=rm._start*ZH;
-    rh.focus({preventScroll:true});
+    rh.scrollTop=(MITTE*rh._n+rh._start)*ZH;rm.scrollTop=(MITTE*rm._n+rm._start)*ZH;
+    function vonRaedern(){return gewaehlt(rh)+':'+gewaehlt(rm);}
+    if(tipp){
+      // Räder → Feld (nach dem Scrollen), Feld → Räder (beim Tippen; krumme Minuten bleiben im Feld erhalten)
+      rh._sync=rm._sync=function(){tipp.value=vonRaedern();};
+      // Gedreht von Hand → Feld läuft mit. Gedreht durchs Tippen → Feld bleibt, wie getippt (krumme Minuten).
+      var ausTipp=0;
+      [rh,rm].forEach(function(d){var tt;d.addEventListener('scroll',function(){clearTimeout(tt);tt=setTimeout(function(){
+        if(Date.now()-ausTipp>400)tipp.value=vonRaedern();},160);});});
+      tipp.addEventListener('input',function(){
+        var w=getippt(tipp.value);if(!w)return;
+        ausTipp=Date.now();
+        setze(rh,w.slice(0,2));
+        if(!setze(rm,w.slice(3,5)))setze(rm,pad(Math.round(+w.slice(3,5)/5)*5%60));
+      });
+      tipp.addEventListener('keydown',function(e){
+        if(e.key==='ArrowUp'||e.key==='ArrowDown'){   // Pfeile im Feld: Minuten in 5er-Schritten
+          e.preventDefault();rm.scrollTop+=(e.key==='ArrowUp'?-1:1)*ZH;mitte(rm);
+          if(e.key==='ArrowDown'&&gewaehlt(rm)==='00'||e.key==='ArrowUp'&&gewaehlt(rm)===rm._w[rm._n-1]){rh.scrollTop+=(e.key==='ArrowUp'?-1:1)*ZH;mitte(rh);}
+          tipp.value=vonRaedern();
+        }
+      });
+      tipp.focus();tipp.select();
+    }else rh.focus({preventScroll:true});
     function zu(neu){
       document.removeEventListener('keydown',taste,true);
       bg.remove();
@@ -770,14 +820,17 @@ if ('serviceWorker' in navigator) {
       }
       i.focus({preventScroll:true});
     }
+    function ergebnis(){return tipp&&getippt(tipp.value)?getippt(tipp.value):vonRaedern();}
     function taste(e){
       if(e.key==='Escape'){e.preventDefault();zu();}
-      else if(e.key==='Enter'){e.preventDefault();zu(gewaehlt(rh)+':'+gewaehlt(rm));}
+      else if(e.key==='Enter'){e.preventDefault();zu(ergebnis());}
+      else if(e.key==='ArrowLeft'&&document.activeElement===rm){e.preventDefault();rh.focus();}
+      else if(e.key==='ArrowRight'&&document.activeElement===rh){e.preventDefault();rm.focus();}
     }
     document.addEventListener('keydown',taste,true);
     bg.addEventListener('click',function(e){if(e.target===bg)zu();});
     ohne.addEventListener('click',function(){zu('');});
-    ok.addEventListener('click',function(){zu(gewaehlt(rh)+':'+gewaehlt(rm));});
+    ok.addEventListener('click',function(){zu(ergebnis());});
   }
   function aufbauen(wurzel){
     [].forEach.call((wurzel||document).querySelectorAll('input[type=time]'),function(i){
