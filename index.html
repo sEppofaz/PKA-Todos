@@ -134,6 +134,23 @@
     .overlay.open{display:flex}
     .modal{background:var(--bg2);border-radius:16px;padding:20px 16px;width:100%;max-width:520px;max-height:90svh;overflow-y:auto}
     .modal h3{font-size:1rem;font-weight:700;margin-bottom:16px}
+
+    /* Foto-Anhänge (#460) */
+    .fotos{display:flex;flex-wrap:wrap;gap:8px}
+    .fotos:empty{display:none}
+    .fthumb{position:relative;width:64px;height:64px;border-radius:8px;overflow:hidden;background:var(--border);flex-shrink:0;cursor:pointer;border:none;padding:0}
+    .fthumb img{width:100%;height:100%;object-fit:cover;display:block}
+    .fthumb .fx{position:absolute;top:2px;right:2px;width:22px;height:22px;border-radius:50%;border:none;background:rgba(0,0,0,.6);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0}
+    .fbtns{display:flex;gap:8px;margin-top:8px}
+    .fbtn{flex:1;height:36px;display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--border);border-radius:8px;background:none;color:var(--text);font-size:.85rem;font-family:inherit;cursor:pointer}
+    .fstatus{font-size:.78rem;color:var(--text2);margin-top:6px;min-height:1em}
+    .fstatus.err{color:var(--hoch)}
+    .cfotos{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
+    .cfotos .fthumb{width:48px;height:48px}
+    #viewer{display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.92);align-items:center;justify-content:center;padding:calc(12px + env(safe-area-inset-top,0px)) 12px calc(12px + env(safe-area-inset-bottom,0px))}
+    #viewer.open{display:flex}
+    #viewer img{max-width:100%;max-height:100%;object-fit:contain;border-radius:6px}
+    #viewer-close{position:absolute;top:calc(12px + env(safe-area-inset-top,0px));right:12px;width:36px;height:36px;border-radius:50%;border:none;background:rgba(255,255,255,.15);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer}
   </style>
 </head>
 <body>
@@ -208,11 +225,28 @@
         <input type="time" id="m-faell-uhr" class="uhr" aria-label="Uhrzeit">
       </div>
     </div>
+    <div class="form-row">
+      <label>Fotos <span style="font-weight:400;color:var(--text2)">(optional)</span></label>
+      <div class="fotos" id="m-fotos"></div>
+      <div class="fbtns">
+        <button type="button" class="fbtn" onclick="document.getElementById('m-kamera').click()"><span data-icon="camera"></span>Kamera</button>
+        <button type="button" class="fbtn" onclick="document.getElementById('m-galerie').click()"><span data-icon="image"></span>Galerie</button>
+      </div>
+      <input type="file" id="m-kamera" accept="image/*" capture="environment" hidden onchange="fotosGewaehlt(this)">
+      <input type="file" id="m-galerie" accept="image/*" multiple hidden onchange="fotosGewaehlt(this)">
+      <div class="fstatus" id="m-fstatus"></div>
+    </div>
     <div class="mbtns">
       <button class="btn-sec" onclick="closeModal()">Abbrechen</button>
-      <button class="btn-pri" onclick="saveModal()">Speichern</button>
+      <button class="btn-pri" id="m-save" onclick="saveModal()">Speichern</button>
     </div>
   </div>
+</div>
+
+<!-- Foto-Vollbild (#460) -->
+<div id="viewer" onclick="closeViewer()">
+  <img id="viewer-img" alt="Foto">
+  <button id="viewer-close" aria-label="Schließen" onclick="closeViewer()"></button>
 </div>
 
 <script>
@@ -224,6 +258,11 @@ const LS_REFRESH   = 'pka_todos_dbx_refresh';
 const LS_KEY       = 'pka_todos_dbx_key';
 const UP_URL       = 'https://content.dropboxapi.com/2/files/upload';
 const DL_URL       = 'https://content.dropboxapi.com/2/files/download';
+const RPC_URL      = 'https://api.dropboxapi.com/2/files/';
+// Foto-Anhänge (#460): relativ zu DBX_DIR gespeichert, je Todo ein Ordner anhaenge/<id>/
+const DBX_DIR      = '/Apps/Claude/Todo-App/';
+const FOTO_MAX     = 1600;   // längste Kante in px (wie Vokabeltrainer)
+const FOTO_QUAL    = 0.85;
 const PRIO_ORDER   = { hoch:0, mittel:1, niedrig:2 };
 const PRIO_LBL     = { hoch:'Hoch', mittel:'Mittel', niedrig:'Niedrig' };
 const KAT_LBL      = { pka:'PKA', privat:'Privat', arbeit:'Arbeit' };
@@ -234,6 +273,9 @@ const ICON_PATHS = {
   search: `<path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/>`,
   trash2: `<path d="M10 11v6"/><path d="M14 11v6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>`,
   chevronDown: `<path d="m6 9 6 6 6-6"/>`,
+  camera: `<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/>`,
+  image: `<rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>`,
+  x: `<path d="M18 6 6 18"/><path d="m6 6 12 12"/>`,
 };
 function icon(name, size=18, filled=false) {
   const p = ICON_PATHS[name] || "";
@@ -303,6 +345,12 @@ let db = { v:1, todos:[] };
 let tab = 'pka', editId = null, mPrio = 'mittel', mKat = 'pka', mFaell = '', mFaellUhr = '';
 let searchQuery = '';
 let expanded = new Set();   // aufgeklappte Karten (überlebt render())
+let dbRev = null;           // Dropbox-Revision von Todos.json beim letzten Laden/Speichern
+let deletedIds = new Set(); // lokal gelöschte Todos – beim Zusammenführen nicht zurückholen
+let mId = null;             // ID des Todos im Modal (bei Neu schon vorab vergeben, für den Foto-Ordner)
+let mFotos = [];            // [{pfad} | {blob, url}] – vorhandene und neu gewählte Fotos
+let mFotosWeg = [];         // im Modal entfernte, schon hochgeladene Pfade
+const linkCache = new Map();// pfad → temporärer Dropbox-Link (4 h gültig)
 
 try { dbxRefresh = localStorage.getItem(LS_REFRESH) || ''; } catch(e) {}
 try { dbxKey = localStorage.getItem(LS_KEY) || APP_KEY; } catch(e) {}
@@ -354,15 +402,26 @@ async function dbxGet(path, _retried = false) {
   return r.ok ? r : null;
 }
 
-async function dbxPut(path, data, _retried = false) {
-  const body = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
+async function dbxPut(path, data, mode = 'overwrite', _retried = false) {
+  const body = (typeof data === 'string' || data instanceof Blob) ? data : JSON.stringify(data, null, 2);
   const r = await fetch(UP_URL, {
     method:'POST',
     headers:{ Authorization:'Bearer '+dbxAccess, 'Content-Type':'application/octet-stream',
-              'Dropbox-API-Arg':JSON.stringify({path, mode:'overwrite', autorename:false}) },
+              'Dropbox-API-Arg':JSON.stringify({path, mode, autorename:false}) },
     body
   });
-  if (r.status === 401 && !_retried) { const ok = await refresh(); if (!ok) return; return dbxPut(path, data, true); }
+  if (r.status === 401 && !_retried) { const ok = await refresh(); if (!ok) return null; return dbxPut(path, data, mode, true); }
+  return r;
+}
+
+// RPC-Endpunkte (JSON rein, JSON raus): get_temporary_link, delete_v2
+async function dbxRpc(fn, arg, _retried = false) {
+  const r = await fetch(RPC_URL + fn, {
+    method:'POST', headers:{ Authorization:'Bearer '+dbxAccess, 'Content-Type':'application/json' },
+    body: JSON.stringify(arg)
+  });
+  if (r.status === 401 && !_retried) { const ok = await refresh(); if (!ok) return null; return dbxRpc(fn, arg, true); }
+  return r;
 }
 
 // ── Load / Save ────────────────────────────────────────────────
@@ -374,7 +433,9 @@ async function load() {
   try {
     const r = await dbxGet(DBX_FILE);
     if (r) {
+      try { dbRev = JSON.parse(r.headers.get('Dropbox-API-Result') || '{}').rev || null; } catch(e) { dbRev = null; }
       try { db = await r.json(); } catch(e) { db = {v:1,todos:[]}; }
+      deletedIds.clear();
     }
     hide('loading'); show('app');
     render();
@@ -383,7 +444,40 @@ async function load() {
   }
 }
 
-async function save() { await dbxPut(DBX_FILE, db); }
+// Speichern mit Revisions-Prüfung: Hat Telegram/Siri/Claude zwischenzeitlich geschrieben, kommt 409.
+// Dann den Serverstand holen und zusammenführen – lokale Fassung gewinnt bei gleicher ID,
+// neue Todos vom Server kommen dazu (außer lokal gelöschte). Ohne bekannte Revision: überschreiben wie bisher.
+let _saving = null;
+async function save() {
+  if (_saving) await _saving.catch(() => {});
+  _saving = _save();
+  return _saving;
+}
+async function _save() {
+  for (let versuch = 0; versuch < 3; versuch++) {
+    const mode = dbRev ? { '.tag':'update', update:dbRev } : 'overwrite';
+    const r = await dbxPut(DBX_FILE, db, mode);
+    if (!r) return;
+    if (r.ok) { try { dbRev = (await r.json()).rev || null; } catch(e) { dbRev = null; } return; }
+    if (r.status !== 409) { console.warn('[save]', r.status); return; }
+    const s = await dbxGet(DBX_FILE);
+    if (!s) return;
+    let server;
+    try { dbRev = JSON.parse(s.headers.get('Dropbox-API-Result') || '{}').rev || null; server = await s.json(); } catch(e) { return; }
+    const lokal = new Set(db.todos.map(t => t.id));
+    const neu = (server.todos || []).filter(t => !lokal.has(t.id) && !deletedIds.has(t.id));
+    if (neu.length) {
+      // Lokal neu angelegte Todos können dieselbe nr bekommen haben wie die vom Server → ans Ende setzen
+      const serverIds = new Set((server.todos || []).map(t => t.id));
+      const belegt = new Set(neu.map(t => t.nr));
+      db.todos.push(...neu);
+      for (const t of db.todos) {
+        if (!serverIds.has(t.id) && belegt.has(t.nr)) t.nr = Math.max(0, ...db.todos.map(x => x.nr || 0)) + 1;
+      }
+      render();
+    }
+  }
+}
 
 // ── Render ─────────────────────────────────────────────────────
 function render() {
@@ -423,6 +517,7 @@ function render() {
   }
   document.getElementById('list').innerHTML = h;
   initDrag();
+  fotosNachladen(document.getElementById('list'));
 }
 
 function faellBadge(f, fu, erledigt) {
@@ -458,6 +553,7 @@ function card(t) {
     <div class="cbody">
       <div class="ctext">${esc(head)}</div>
       ${more}
+      ${fotosHtml(t)}
       <div class="cmeta">${nr}<span class="cdate">${d}</span><span class="pbadge ${pb}">${PRIO_LBL[t.prio||'niedrig']}</span>${kb}${fb}</div>
     </div>
     <div class="cacts">
@@ -524,13 +620,132 @@ async function toggle(id) {
   const t = db.todos.find(x => x.id === id); if (!t) return;
   t.erledigt = !t.erledigt;
   t.erledigt_am = t.erledigt ? new Date().toISOString().split('T')[0] : null;
-  render(); save();
+  const fotos = t.erledigt && t.anhaenge && t.anhaenge.length;   // Abhaken löscht die Fotos (Josef 2026-10-12)
+  if (fotos) delete t.anhaenge;
+  render(); await save();
+  if (fotos) anhaengeLoeschen(id);
 }
 
 async function del(id) {
   if (!confirm('Todo löschen?')) return;
+  const fotos = (db.todos.find(t => t.id === id)?.anhaenge || []).length;
   db.todos = db.todos.filter(t => t.id !== id);
-  render(); save();
+  deletedIds.add(id);
+  render(); await save();
+  if (fotos) anhaengeLoeschen(id);
+}
+
+// ── Foto-Anhänge (#460) ────────────────────────────────────────
+// Ordner anhaenge/<id>/ löschen. Fehler nur loggen – das Todo ist schon gespeichert.
+async function anhaengeLoeschen(id) {
+  try { await dbxRpc('delete_v2', { path: DBX_DIR + 'anhaenge/' + id }); }
+  catch(e) { console.warn('[anhaenge]', e); }
+}
+
+async function fotoLink(pfad) {
+  if (linkCache.has(pfad)) return linkCache.get(pfad);
+  const r = await dbxRpc('get_temporary_link', { path: DBX_DIR + pfad });
+  if (!r || !r.ok) return '';
+  const url = (await r.json()).link || '';
+  if (url) linkCache.set(pfad, url);
+  return url;
+}
+
+// Vorschaubilder auf der Karte (nur offene Todos – erledigte haben keine Fotos mehr).
+// Die Links kommen asynchron, die <img> werden danach befüllt.
+function fotosHtml(t) {
+  const a = t.anhaenge || [];
+  if (!a.length) return '';
+  return `<div class="cfotos">${a.map(p => `<button class="fthumb" onclick="event.stopPropagation();openViewer('${esc(p)}')" aria-label="Foto ansehen"><img data-pfad="${esc(p)}" alt=""></button>`).join('')}</div>`;
+}
+function fotosNachladen(root = document) {
+  root.querySelectorAll('img[data-pfad]:not([src])').forEach(async img => {
+    const url = await fotoLink(img.dataset.pfad);
+    if (url) img.src = url;
+  });
+}
+
+async function openViewer(pfadOderUrl) {
+  const url = pfadOderUrl.startsWith('blob:') ? pfadOderUrl : await fotoLink(pfadOderUrl);
+  if (!url) return;
+  document.getElementById('viewer-img').src = url;
+  document.getElementById('viewer').classList.add('open');
+}
+function closeViewer() {
+  document.getElementById('viewer').classList.remove('open');
+  document.getElementById('viewer-img').removeAttribute('src');
+}
+
+// Bild verkleinern (längste Kante FOTO_MAX) und als JPEG-Blob liefern – Muster aus dem Vokabeltrainer
+function fotoVerkleinern(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      let w = img.naturalWidth, h = img.naturalHeight;
+      const f = Math.min(1, FOTO_MAX / Math.max(w, h));
+      w = Math.round(w * f); h = Math.round(h * f);
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      c.getContext('2d').drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      c.toBlob(b => b ? resolve(b) : reject(new Error('Bild konnte nicht umgewandelt werden')), 'image/jpeg', FOTO_QUAL);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Bild konnte nicht gelesen werden')); };
+    img.src = url;
+  });
+}
+
+async function fotosGewaehlt(input) {
+  const files = [...input.files];
+  input.value = '';
+  if (!files.length) return;
+  fStatus('Bild wird vorbereitet…');
+  for (const f of files) {
+    try { const blob = await fotoVerkleinern(f); mFotos.push({ blob, url: URL.createObjectURL(blob) }); }
+    catch(e) { fStatus(e.message, true); return; }
+  }
+  fStatus('');
+  renderModalFotos();
+}
+
+function renderModalFotos() {
+  const box = document.getElementById('m-fotos');
+  box.innerHTML = mFotos.map((f, i) => `<div class="fthumb" onclick="openViewer('${f.url ? f.url : esc(f.pfad)}')">
+      <img ${f.url ? `src="${f.url}"` : `data-pfad="${esc(f.pfad)}"`} alt="">
+      <button type="button" class="fx" onclick="event.stopPropagation();fotoEntfernen(${i})" aria-label="Foto entfernen">${icon('x', 14)}</button>
+    </div>`).join('');
+  fotosNachladen(box);
+}
+
+function fotoEntfernen(i) {
+  const [f] = mFotos.splice(i, 1);
+  if (f.pfad) mFotosWeg.push(f.pfad);
+  if (f.url) URL.revokeObjectURL(f.url);
+  renderModalFotos();
+}
+
+function fStatus(txt, err = false) {
+  const el = document.getElementById('m-fstatus');
+  el.textContent = txt; el.classList.toggle('err', err);
+}
+
+// Neue Fotos hochladen, entfernte löschen. Liefert die Pfadliste oder wirft bei Upload-Fehler.
+async function fotosSpeichern(id) {
+  const pfade = [];
+  for (const f of mFotos) {
+    if (f.pfad) { pfade.push(f.pfad); continue; }
+    const pfad = `anhaenge/${id}/${crypto.randomUUID()}.jpg`;
+    const r = await dbxPut(DBX_DIR + pfad, f.blob, 'add');
+    if (!r || !r.ok) throw new Error('Foto-Upload fehlgeschlagen' + (r ? ` (${r.status})` : ''));
+    f.pfad = pfad;
+    pfade.push(pfad);
+  }
+  for (const p of mFotosWeg) {
+    try { await dbxRpc('delete_v2', { path: DBX_DIR + p }); } catch(e) { console.warn('[anhaenge]', e); }
+    linkCache.delete(p);
+  }
+  return pfade;
 }
 
 // ── Modal ──────────────────────────────────────────────────────
@@ -556,6 +771,7 @@ function showAdd() {
   setUhr('');
   mPrio = 'mittel'; mKat = tab; mFaell = '';
   seg('m-prio', mPrio); seg('m-kat', mKat);
+  mId = crypto.randomUUID(); fotosZuruecksetzen([]);
   document.getElementById('modal').classList.add('open');
   setTimeout(() => document.getElementById('m-text').focus(), 100);
 }
@@ -569,7 +785,14 @@ function showEdit(id) {
   setUhr(t.faelligkeit_uhrzeit || '');
   mPrio = t.prio || 'niedrig'; mKat = t.kategorie || 'pka'; mFaell = t.faelligkeit || ''; mFaellUhr = t.faelligkeit_uhrzeit || '';
   seg('m-prio', mPrio); seg('m-kat', mKat);
+  mId = id; fotosZuruecksetzen(t.anhaenge || []);
   document.getElementById('modal').classList.add('open');
+}
+
+function fotosZuruecksetzen(pfade) {
+  mFotos.forEach(f => f.url && URL.revokeObjectURL(f.url));
+  mFotos = pfade.map(pfad => ({ pfad })); mFotosWeg = [];
+  fStatus(''); renderModalFotos();
 }
 
 function closeModal() {
@@ -589,13 +812,27 @@ async function saveModal() {
   document.getElementById('m-text').style.borderColor = '';
   const faelligkeit = document.getElementById('m-faell').value || (getUhr() ? heuteLokal() : null);
   const faelligkeit_uhrzeit = faelligkeit ? getUhr() : null;
+  // Fotos zuerst hochladen – schlägt das fehl, bleibt das Modal mit allen Eingaben offen
+  let anhaenge = [];
+  if (mFotos.length || mFotosWeg.length) {
+    const btn = document.getElementById('m-save');
+    btn.disabled = true; fStatus('Fotos werden hochgeladen…');
+    try { anhaenge = await fotosSpeichern(mId); fStatus(''); }
+    catch(e) { fStatus(e.message + ' – bitte nochmal speichern.', true); return; }
+    finally { btn.disabled = false; }
+  }
   if (editId) {
     const t = db.todos.find(x => x.id === editId);
-    if (t) { t.aufgabe = aufgabe; t.prio = mPrio; t.kategorie = mKat; t.faelligkeit = faelligkeit; t.faelligkeit_uhrzeit = faelligkeit_uhrzeit; }
+    if (t) {
+      t.aufgabe = aufgabe; t.prio = mPrio; t.kategorie = mKat; t.faelligkeit = faelligkeit; t.faelligkeit_uhrzeit = faelligkeit_uhrzeit;
+      if (anhaenge.length) t.anhaenge = anhaenge; else delete t.anhaenge;
+    }
   } else {
     const nextNr = Math.max(0, ...db.todos.map(t => t.nr || 0)) + 1;
-    db.todos.push({ id:crypto.randomUUID(), datum:new Date().toISOString().split('T')[0],
-      aufgabe, prio:mPrio, kategorie:mKat, erledigt:false, erledigt_am:null, faelligkeit, faelligkeit_uhrzeit, nr:nextNr });
+    const neu = { id:mId, datum:new Date().toISOString().split('T')[0],
+      aufgabe, prio:mPrio, kategorie:mKat, erledigt:false, erledigt_am:null, faelligkeit, faelligkeit_uhrzeit, nr:nextNr };
+    if (anhaenge.length) neu.anhaenge = anhaenge;
+    db.todos.push(neu);
   }
   closeModal(); render(); await save();
 }
@@ -666,6 +903,10 @@ async function init() {
   if (!ok) { hide('loading'); show('setup'); return; }
   await load();
 }
+
+document.querySelectorAll('[data-icon]').forEach(el => { el.innerHTML = icon(el.dataset.icon, 16); });
+document.getElementById('viewer-close').innerHTML = icon('x', 20);
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeViewer(); });
 
 init();
 

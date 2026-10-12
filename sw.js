@@ -1,4 +1,4 @@
-const CACHE = 'pka-todos-v11';
+const CACHE = 'pka-todos-v12';
 const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png', './apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
@@ -23,7 +23,7 @@ self.addEventListener('message', e => {
 
 self.addEventListener('fetch', e => {
   // Dropbox-API nie cachen
-  if (e.request.url.includes('dropboxapi.com') || e.request.url.includes('dropbox.com/oauth2')) return;
+  if (e.request.url.includes('dropboxapi.com') || e.request.url.includes('dropboxusercontent.com') || e.request.url.includes('dropbox.com/oauth2')) return;
   // index.html: Network-first, Fallback Cache
   if (e.request.url.endsWith('/') || e.request.url.includes('index.html')) {
     e.respondWith(

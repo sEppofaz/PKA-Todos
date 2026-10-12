@@ -8,7 +8,7 @@
 - **Deployment:** `git push` → GitHub Pages automatisch
 - **Datendatei:** `/Apps/Claude/Todo-App/Todos.json` in Dropbox (SSOT)
 - **Dropbox App-Key:** `s2ggv6zysmzn7fa` (gleicher wie Messwerte- und Rauchmelder-App)
-- **Service Worker Cache:** `pka-todos-v10` (in `sw.js` hochzählen bei neuer Version – nur nötig bei Breaking Changes in Assets/Icons/Manifest, nicht bei `index.html`-Änderungen da Network-first)
+- **Service Worker Cache:** `pka-todos-v12` (in `sw.js` hochzählen bei neuer Version – nur nötig bei Breaking Changes in Assets/Icons/Manifest, nicht bei `index.html`-Änderungen da Network-first)
 
 ### Deployment-Flow
 
@@ -36,7 +36,8 @@ git add . && git commit -m "Beschreibung" && git push
     "erledigt_am": null,
     "faelligkeit": "YYYY-MM-DD|null",
     "faelligkeit_uhrzeit": "HH:MM|null",
-    "order": 0
+    "order": 0,
+    "anhaenge": ["anhaenge/<id>/<uuid>.jpg"]
   }]
 }
 ```
@@ -44,6 +45,7 @@ git add . && git commit -m "Beschreibung" && git push
 - **`nr`**: Stabile 3-stellige Nummer (100, 101, …). Einmalig vergeben, nie geändert. App zeigt `#nr` an. Bei neuen Todos: `Math.max(...todos.map(t => t.nr||0)) + 1`. Claude und App referenzieren mit `#nr`.
 - **`kategorie`**: `pka` | `privat` | `arbeit` (Tabs wieder eingeführt 2026-05-26).
 - **`order`**: Manuelle Sortierreihenfolge (ganze Zahl, DOM-global); fehlt → Sortierung nach Datum. Wird via Drag & Drop gesetzt.
+- **`anhaenge`** (seit 2026-10-12, #460): Optional, Liste von Foto-Pfaden **relativ zu `/Apps/Claude/Todo-App/`**. Fehlt das Feld, hat das Todo keine Fotos – nie `null` schreiben, sondern das Feld weglassen.
 - **`faelligkeit`**: Optional; `pka_todos_reminder.py` (Cron alle 15 Min) meldet fällige/überfällige Todos per Telegram.
 
 ---
@@ -183,3 +185,37 @@ Gleiche Hashtag-Logik wie Telegram. Shortcut-Name auf iPhone: „Todo" → „He
 - Grund: Fälligkeits-Datumsfeld wurde am unteren Bildschirmrand abgeschnitten (Mac-Browser)
 - `max-height:90svh; overflow-y:auto` → scrollbar auf kleinen Bildschirmen
 - **iOS Zoom-Pitfall:** Input-Felder brauchen `font-size:1rem` (≥16px) – iOS zoomt automatisch rein bei <16px und kehrt nach Speichern nicht zurück. **Fix (2026-05-30):** `closeModal()` setzt Viewport-Meta kurz auf `maximum-scale=1` und entfernt das per `requestAnimationFrame` wieder → erzwingt Zoom-Reset ohne Pinch-Zoom dauerhaft zu sperren.
+
+---
+
+## Foto-Anhänge (seit 2026-10-12, Todo #460)
+
+- **Ablage:** `/Apps/Claude/Todo-App/anhaenge/<todo-id>/<uuid>.jpg`, im Todo als relativer Pfad in `anhaenge`.
+- **App:** Bearbeiten-Dialog → „Kamera“ / „Galerie“ (`capture="environment"` bzw. `multiple`). `fotoVerkleinern()`
+  (Muster Vokabeltrainer) skaliert auf max. 1600 px, JPEG 0,85. Hochgeladen wird erst beim **Speichern**
+  (`fotosSpeichern()`, `dbxPut(..., 'add')`); schlägt der Upload fehl, bleibt der Dialog mit allen Eingaben offen.
+  Bei neuen Todos vergibt `showAdd()` die ID vorab (`mId`), damit der Ordner feststeht.
+- **Anzeige:** 48-px-Vorschaubilder auf der Karte, Antippen → Vollbild (`#viewer`). Bild-URLs über
+  `files/get_temporary_link` (4 h gültig), gecacht in `linkCache`. `dropboxusercontent.com` ist im `sw.js` vom Cache
+  ausgenommen (v12).
+- **Löschen:** Abhaken **oder** Löschen eines Todos entfernt das Feld und löscht den Ordner `anhaenge/<id>/`
+  (`delete_v2`, Josef-Wunsch). Wird ein abgehaktes Todo wieder geöffnet, sind die Fotos weg – gewollt.
+  Fehler beim Löschen werden nur geloggt.
+- **Telegram:** Foto an den Bot → Todo mit Anhang, Bildunterschrift = Aufgabe (`#privat`/`#arbeit` wie bei Text,
+  ohne Text „Foto-Todo“). Code im Vereinskalender-Repo: `services/telegram/routes.py` (`_telegram_foto()`) und
+  `shared/pka_todos.py` (`todo_anlegen(..., foto=)`, lädt das Foto **vor** dem JSON hoch).
+
+## Speichern mit Revisions-Prüfung (seit 2026-10-12)
+
+Bis dahin überschrieb `save()` die Datei blind – ein Todo, das Telegram/Siri zwischen Laden und Speichern anlegte,
+ging verloren. Jetzt merkt sich `load()` die `rev` aus dem Header `Dropbox-API-Result`, `save()` schreibt mit
+`mode: update(rev)`. Bei **409** holt `_save()` den Serverstand und führt zusammen: lokale Fassung gewinnt bei
+gleicher ID, neue Server-Todos kommen dazu (außer lokal gelöschte, `deletedIds`), kollidierende `nr` lokal
+neu angelegter Todos rücken ans Ende. Ohne bekannte `rev` → Überschreiben wie früher. `save()` läuft serialisiert
+(`_saving`), damit zwei schnelle Aktionen nicht mit derselben `rev` schreiben.
+
+**Test (offline, Node):** Script-Block aus `index.html` in eine `vm`-Sandbox laden, `fetch` durch eine
+Dropbox-Attrappe ersetzen (Download mit `Dropbox-API-Result`, Upload mit 409 bei falscher `rev`) und
+`saveModal()`/`toggle()`/`del()` durchspielen. So am 2026-10-12 verifiziert (12 Prüfungen) – dabei fiel die
+`nr`-Kollision auf. Zusätzlich `card()` über alle echten Todos (353, 0 Fehler).
+
