@@ -221,3 +221,10 @@ Dropbox-Attrappe ersetzen (Download mit `Dropbox-API-Result`, Upload mit 409 bei
 `saveModal()`/`toggle()`/`del()` durchspielen. So am 2026-10-12 verifiziert (12 Prüfungen) – dabei fiel die
 `nr`-Kollision auf. Zusätzlich `card()` über alle echten Todos (353, 0 Fehler).
 
+## Speichern bei parallelen Schreibern (#479, 2026-10-12)
+
+Bei 409 (Revision veraltet) führt `_save()` zusammen: **lokale Fassung gewinnt nur bei Todos, die in der App seit dem
+Laden geändert wurden** (Vergleich mit `basis`, JSON je Todo, gesetzt bei `load()` und nach jedem erfolgreichen Speichern).
+Sonst gilt der Server. Vorher gewann lokal immer – ein offenes Fenster mit altem Stand hat am 2026-10-12 das Abhaken von
+#470–#478 durch Claude beim Anlegen von #479 rückgängig gemacht. Lokal neue Todos kommen dazu (bei `nr`-Kollision ans
+Ende), lokal gelöschte bleiben weg, auf dem Server gelöschte verschwinden auch lokal (außer lokal geändert).

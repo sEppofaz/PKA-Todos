@@ -368,6 +368,8 @@ let searchQuery = '';
 let expanded = new Set();   // aufgeklappte Karten (überlebt render())
 let dbRev = null;           // Dropbox-Revision von Todos.json beim letzten Laden/Speichern
 let deletedIds = new Set(); // lokal gelöschte Todos – beim Zusammenführen nicht zurückholen
+let basis = new Map();      // Stand je Todo beim letzten Laden/Speichern (JSON) – erkennt, was lokal geändert wurde
+function basisSetzen() { basis = new Map(db.todos.map(t => [t.id, JSON.stringify(t)])); }
 let mId = null;             // ID des Todos im Modal (bei Neu schon vorab vergeben, für den Foto-Ordner)
 let mFotos = [];            // [{pfad} | {blob, url}] – vorhandene und neu gewählte Fotos
 let mFotosWeg = [];         // im Modal entfernte, schon hochgeladene Pfade
@@ -456,7 +458,7 @@ async function load() {
     if (r) {
       try { dbRev = JSON.parse(r.headers.get('Dropbox-API-Result') || '{}').rev || null; } catch(e) { dbRev = null; }
       try { db = await r.json(); } catch(e) { db = {v:1,todos:[]}; }
-      deletedIds.clear();
+      deletedIds.clear(); basisSetzen();
     }
     hide('loading'); show('app');
     render();
@@ -466,8 +468,10 @@ async function load() {
 }
 
 // Speichern mit Revisions-Prüfung: Hat Telegram/Siri/Claude zwischenzeitlich geschrieben, kommt 409.
-// Dann den Serverstand holen und zusammenführen – lokale Fassung gewinnt bei gleicher ID,
-// neue Todos vom Server kommen dazu (außer lokal gelöschte). Ohne bekannte Revision: überschreiben wie bisher.
+// Dann den Serverstand holen und zusammenführen: Die lokale Fassung gewinnt nur bei Todos, die in der App seit dem
+// Laden geändert wurden – sonst gilt der Server (vorher gewann lokal immer: ein offenes Fenster mit altem Stand hat
+// Abhaken per Claude/Telegram rückgängig gemacht, #479). Lokal neue kommen dazu, lokal gelöschte bleiben weg, auf dem
+// Server gelöschte verschwinden auch lokal (außer lokal geändert). Ohne bekannte Revision: überschreiben wie bisher.
 let _saving = null;
 async function save() {
   if (_saving) await _saving.catch(() => {});
@@ -479,24 +483,32 @@ async function _save() {
     const mode = dbRev ? { '.tag':'update', update:dbRev } : 'overwrite';
     const r = await dbxPut(DBX_FILE, db, mode);
     if (!r) return;
-    if (r.ok) { try { dbRev = (await r.json()).rev || null; } catch(e) { dbRev = null; } return; }
+    if (r.ok) { try { dbRev = (await r.json()).rev || null; } catch(e) { dbRev = null; } basisSetzen(); return; }
     if (r.status !== 409) { console.warn('[save]', r.status); return; }
     const s = await dbxGet(DBX_FILE);
     if (!s) return;
     let server;
     try { dbRev = JSON.parse(s.headers.get('Dropbox-API-Result') || '{}').rev || null; server = await s.json(); } catch(e) { return; }
-    const lokal = new Set(db.todos.map(t => t.id));
-    const neu = (server.todos || []).filter(t => !lokal.has(t.id) && !deletedIds.has(t.id));
-    if (neu.length) {
-      // Lokal neu angelegte Todos können dieselbe nr bekommen haben wie die vom Server → ans Ende setzen
-      const serverIds = new Set((server.todos || []).map(t => t.id));
-      const belegt = new Set(neu.map(t => t.nr));
-      db.todos.push(...neu);
-      for (const t of db.todos) {
-        if (!serverIds.has(t.id) && belegt.has(t.nr)) t.nr = Math.max(0, ...db.todos.map(x => x.nr || 0)) + 1;
-      }
-      render();
+    const geaendert = t => basis.get(t.id) !== JSON.stringify(t);
+    const lokal = new Map(db.todos.map(t => [t.id, t]));
+    const serverTodos = server.todos || [];
+    const serverIds = new Set(serverTodos.map(t => t.id));
+    const zusammen = [];
+    for (const t of serverTodos) {
+      if (deletedIds.has(t.id)) continue;
+      const l = lokal.get(t.id);
+      if (l && geaendert(l)) zusammen.push(l);
+      else { zusammen.push(t); basis.set(t.id, JSON.stringify(t)); }
     }
+    // nur lokal vorhanden: neu angelegt (nicht in basis) oder auf dem Server gelöscht, aber hier geändert
+    const nurLokal = db.todos.filter(t => !serverIds.has(t.id) && (!basis.has(t.id) || geaendert(t)));
+    const belegt = new Set(serverTodos.map(t => t.nr));
+    for (const t of nurLokal) {
+      if (belegt.has(t.nr)) t.nr = Math.max(0, ...zusammen.map(x => x.nr || 0), ...nurLokal.map(x => x.nr || 0)) + 1;
+      belegt.add(t.nr); zusammen.push(t);
+    }
+    db = { ...server, todos: zusammen };
+    render();
   }
 }
 
