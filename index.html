@@ -77,6 +77,7 @@
     .cdate{font-size:.72rem;color:var(--text2)}
     .cnum{font-size:.72rem;font-weight:700;color:var(--text2);background:var(--border);border-radius:4px;padding:1px 5px;flex-shrink:0}
     .pbadge{font-size:.68rem;font-weight:600;border-radius:4px;padding:1px 5px}
+    .qbadge{display:inline-flex;align-items:center;gap:3px;font-size:.68rem;font-weight:600;border-radius:4px;padding:1px 5px;color:var(--accent);background:color-mix(in srgb,var(--accent) 13%,transparent)}
     .bh{color:var(--hoch);background:color-mix(in srgb,var(--hoch) 15%,transparent)}
     .bm{color:var(--mittel);background:color-mix(in srgb,var(--mittel) 15%,transparent)}
     .bn{color:var(--niedrig);background:color-mix(in srgb,var(--niedrig) 15%,transparent)}
@@ -134,6 +135,11 @@
     .overlay.open{display:flex}
     .modal{background:var(--bg2);border-radius:16px;padding:20px 16px;width:100%;max-width:520px;max-height:90svh;overflow-y:auto}
     .modal h3{font-size:1rem;font-weight:700;margin-bottom:16px}
+    /* Rückfrage statt confirm() – der Safari-Dialog lief im schmalen Fenster aus dem Bild (#474) */
+    #frage{z-index:300}
+    #frage .modal{max-width:340px}
+    #frage-text{font-size:.95rem;line-height:1.4;word-break:break-word}
+    .btn-gefahr{flex:1;padding:11px;background:var(--hoch);color:#fff;border:none;border-radius:8px;font-size:.9rem;font-weight:600;cursor:pointer}
 
     /* Foto-Anhänge (#460) */
     .fotos{display:flex;flex-wrap:wrap;gap:8px}
@@ -230,7 +236,8 @@
       <div class="fotos" id="m-fotos"></div>
       <div class="fbtns">
         <button type="button" class="fbtn" onclick="document.getElementById('m-kamera').click()"><span data-icon="camera"></span>Kamera</button>
-        <button type="button" class="fbtn" onclick="document.getElementById('m-galerie').click()"><span data-icon="image"></span>Galerie</button>
+        <button type="button" class="fbtn" onclick="document.getElementById('m-galerie').click()"><span data-icon="folder"></span>Files</button>
+        <button type="button" class="fbtn" onclick="ausZwischenablage()" title="Bildschirmfoto aus der Zwischenablage (am Mac auch ⌘V)"><span data-icon="clipboardPaste"></span>Einfügen</button>
       </div>
       <input type="file" id="m-kamera" accept="image/*" capture="environment" hidden onchange="fotosGewaehlt(this)">
       <input type="file" id="m-galerie" accept="image/*" multiple hidden onchange="fotosGewaehlt(this)">
@@ -239,6 +246,17 @@
     <div class="mbtns">
       <button class="btn-sec" onclick="closeModal()">Abbrechen</button>
       <button class="btn-pri" id="m-save" onclick="saveModal()">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- Rückfrage (#474) -->
+<div class="overlay" id="frage">
+  <div class="modal" role="alertdialog" aria-modal="true" aria-labelledby="frage-text">
+    <div id="frage-text"></div>
+    <div class="mbtns">
+      <button class="btn-sec" id="frage-nein">Abbrechen</button>
+      <button class="btn-gefahr" id="frage-ja">Löschen</button>
     </div>
   </div>
 </div>
@@ -276,6 +294,9 @@ const ICON_PATHS = {
   camera: `<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/>`,
   image: `<rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>`,
   x: `<path d="M18 6 6 18"/><path d="m6 6 12 12"/>`,
+  folder: `<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>`,
+  clipboardPaste: `<path d="M11 14h10"/><path d="M16 4h2a2 2 0 0 1 2 2v1.344"/><path d="m17 18 4-4-4-4"/><path d="M8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 1.793-1.113"/><rect x="8" y="2" width="8" height="4" rx="1"/>`,
+  bot: `<path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/>`,
 };
 function icon(name, size=18, filled=false) {
   const p = ICON_PATHS[name] || "";
@@ -537,6 +558,7 @@ function card(t) {
   const kb = searching ? `<span class="kbadge">${KAT_LBL[t.kategorie]||t.kategorie}</span>` : '';
   const fb = faellBadge(t.faelligkeit, t.faelligkeit_uhrzeit, t.erledigt);
   const nr = t.nr != null ? `<span class="cnum">#${t.nr}</span>` : '';
+  const qb = t.quelle === 'claude' ? `<span class="qbadge" title="Von Claude angelegt">${icon('bot', 12)}Claude</span>` : '';   // #470
   const handle = searching ? '' : '<div class="drag-handle" onclick="event.stopPropagation()">⠿</div>';
   const { head, rest } = splitAufgabe(t.aufgabe);
   // Bei aktiver Suche aufklappen, wenn der Treffer nur im verborgenen Teil steht
@@ -554,7 +576,7 @@ function card(t) {
       <div class="ctext">${esc(head)}</div>
       ${more}
       ${fotosHtml(t)}
-      <div class="cmeta">${nr}<span class="cdate">${d}</span><span class="pbadge ${pb}">${PRIO_LBL[t.prio||'niedrig']}</span>${kb}${fb}</div>
+      <div class="cmeta">${nr}<span class="cdate">${d}</span><span class="pbadge ${pb}">${PRIO_LBL[t.prio||'niedrig']}</span>${qb}${kb}${fb}</div>
     </div>
     <div class="cacts">
       <button class="bico" onclick="event.stopPropagation();del('${t.id}')" title="Löschen">${icon('trash2', 16)}</button>
@@ -626,8 +648,29 @@ async function toggle(id) {
   if (fotos) anhaengeLoeschen(id);
 }
 
+// Eigene Rückfrage statt confirm() (#474). Liefert true bei „Löschen“; Abbrechen, Escape oder Tipp daneben = false.
+function frage(text) {
+  const ov = document.getElementById('frage');
+  document.getElementById('frage-text').textContent = text;
+  ov.classList.add('open');
+  document.getElementById('frage-ja').focus();
+  return new Promise(resolve => {
+    const fertig = ja => {
+      ov.classList.remove('open');
+      ov.onclick = document.getElementById('frage-ja').onclick = document.getElementById('frage-nein').onclick = null;
+      document.removeEventListener('keydown', taste, true);
+      resolve(ja);
+    };
+    const taste = e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); fertig(false); } };
+    document.addEventListener('keydown', taste, true);
+    document.getElementById('frage-ja').onclick = () => fertig(true);
+    document.getElementById('frage-nein').onclick = () => fertig(false);
+    ov.onclick = e => { if (e.target === ov) fertig(false); };
+  });
+}
+
 async function del(id) {
-  if (!confirm('Todo löschen?')) return;
+  if (!await frage('Todo löschen?')) return;
   const fotos = (db.todos.find(t => t.id === id)?.anhaenge || []).length;
   db.todos = db.todos.filter(t => t.id !== id);
   deletedIds.add(id);
@@ -699,6 +742,33 @@ function fotoVerkleinern(file) {
 async function fotosGewaehlt(input) {
   const files = [...input.files];
   input.value = '';
+  await fotosHinzu(files);
+}
+
+// Bildschirmfotos aus der Zwischenablage (#471): Knopf „Einfügen“ oder ⌘V/Strg+V, solange der Dialog offen ist
+async function ausZwischenablage() {
+  if (!navigator.clipboard || !navigator.clipboard.read) { fStatus('Einfügen per Knopf geht in diesem Browser nicht – bitte ⌘V bzw. Strg+V drücken.', true); return; }
+  try {
+    const files = [];
+    for (const item of await navigator.clipboard.read()) {
+      const typ = item.types.find(x => x.startsWith('image/'));
+      if (typ) files.push(new File([await item.getType(typ)], 'zwischenablage', { type: typ }));
+    }
+    if (!files.length) { fStatus('In der Zwischenablage ist kein Bild.', true); return; }
+    await fotosHinzu(files);
+  } catch(e) {
+    fStatus(e.name === 'NotAllowedError' ? 'Zugriff auf die Zwischenablage abgelehnt.' : 'In der Zwischenablage ist kein Bild.', true);
+  }
+}
+document.addEventListener('paste', e => {
+  if (!document.getElementById('modal').classList.contains('open')) return;
+  const files = [...(e.clipboardData?.items || [])].filter(i => i.kind === 'file' && i.type.startsWith('image/')).map(i => i.getAsFile()).filter(Boolean);
+  if (!files.length) return;          // Text wird normal ins Feld eingefügt
+  e.preventDefault();
+  fotosHinzu(files);
+});
+
+async function fotosHinzu(files) {
   if (!files.length) return;
   fStatus('Bild wird vorbereitet…');
   for (const f of files) {
@@ -830,7 +900,7 @@ async function saveModal() {
   } else {
     const nextNr = Math.max(0, ...db.todos.map(t => t.nr || 0)) + 1;
     const neu = { id:mId, datum:new Date().toISOString().split('T')[0],
-      aufgabe, prio:mPrio, kategorie:mKat, erledigt:false, erledigt_am:null, faelligkeit, faelligkeit_uhrzeit, nr:nextNr };
+      aufgabe, prio:mPrio, kategorie:mKat, erledigt:false, erledigt_am:null, faelligkeit, faelligkeit_uhrzeit, nr:nextNr, quelle:'app' };
     if (anhaenge.length) neu.anhaenge = anhaenge;
     db.todos.push(neu);
   }

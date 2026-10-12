@@ -37,7 +37,8 @@ git add . && git commit -m "Beschreibung" && git push
     "faelligkeit": "YYYY-MM-DD|null",
     "faelligkeit_uhrzeit": "HH:MM|null",
     "order": 0,
-    "anhaenge": ["anhaenge/<id>/<uuid>.jpg"]
+    "anhaenge": ["anhaenge/<id>/<uuid>.jpg"],
+    "quelle": "claude|app|telegram|siri|skript"
   }]
 }
 ```
@@ -46,6 +47,7 @@ git add . && git commit -m "Beschreibung" && git push
 - **`kategorie`**: `pka` | `privat` | `arbeit` (Tabs wieder eingeführt 2026-05-26).
 - **`order`**: Manuelle Sortierreihenfolge (ganze Zahl, DOM-global); fehlt → Sortierung nach Datum. Wird via Drag & Drop gesetzt.
 - **`anhaenge`** (seit 2026-10-12, #460): Optional, Liste von Foto-Pfaden **relativ zu `/Apps/Claude/Todo-App/`**. Fehlt das Feld, hat das Todo keine Fotos – nie `null` schreiben, sondern das Feld weglassen.
+- **`quelle`** (seit 2026-10-12, #470): Herkunft, beim Anlegen gesetzt – App `app`, Bot `telegram`, iOS-Kurzbefehl `siri`, Server-Skripte (`heimat_import`, `modell_check`) `skript` (alle über `shared/pka_todos.todo_anlegen` im Vereinskalender-Repo). **Claude setzt beim Anlegen immer `"quelle": "claude"`.** Nur `claude` bekommt in der Liste einen Chip „Claude“ (Lucide `bot`) neben der Prio. Bestand ohne Feld bleibt unmarkiert – nicht nachträglich befüllen.
 - **`faelligkeit`**: Optional; `pka_todos_reminder.py` (Cron alle 15 Min) meldet fällige/überfällige Todos per Telegram.
 
 ---
@@ -57,7 +59,7 @@ git add . && git commit -m "Beschreibung" && git push
 - **Prio-Gruppen:** Hoch / Mittel / Niedrig (innerhalb per Drag & Drop sortierbar), Default „Mittel" beim Anlegen (Claude-Regel dazu: `PKA/CLAUDE.md`)
 - **Karte antippen** → Bearbeiten-Modal
 - **Checkbox** → Todo abhaken (ohne Edit-Modal zu öffnen)
-- **🗑-Button** → Löschen
+- **🗑-Button** → Löschen (Rückfrage über eigene Karte `frage()` statt `confirm()` – der Safari-Dialog lief im schmalen Fenster aus dem Bild, #474)
 - **⠿ Handle** → Drag & Drop innerhalb der Prio-Gruppe (Pointer Events, iOS-kompatibel)
 - **Fälligkeits-Uhrzeit (seit 2026-10-11, #454):** `#m-faell-uhr` ist ein `<input type=time>`, das der Baustein am Dateiende (Kopie von Vereinskalender `src/shared/uhrzeit_ui.py`, Farben `--bg2`/`--accent`) beim Laden zu einem Textfeld macht: Antippen öffnet ein Fenster in der Bildschirmmitte mit zwei Rädern (Stunde, Minute in 5er-Schritten, krumme Bestandszeit bleibt), leeres Feld startet bei 12:00, „Ohne Uhrzeit“ leert. `setUhr()`/`getUhr()` lesen/schreiben nur noch das Feld, gespeichert wird `HH:MM`. Änderungen am Baustein in **beiden** Repos nachziehen. Das Datumsfeld hat `appearance:none` – iOS zeichnete es sonst höher als die übrigen Felder (Josef-Bild 2026-10-11). Vorher (2026-10-10): zwei Auswahllisten 00/15/30/45.
 - **Uhrzeit ohne Datum (2026-10-11, #448):** Das leere `<input type=date>` sieht auf dem iPhone ausgefüllt aus (graues Datum) – Josef wählte nur die Uhrzeit, `saveModal()` verwarf sie still, es kam keine Erinnerung. Jetzt setzt eine Uhrzeit-Auswahl bei leerem Datum sichtbar `heuteLokal()` (Ortszeit, nicht `toISOString()` = UTC), `saveModal()` macht dasselbe als Sicherheitsnetz.
@@ -191,7 +193,7 @@ Gleiche Hashtag-Logik wie Telegram. Shortcut-Name auf iPhone: „Todo" → „He
 ## Foto-Anhänge (seit 2026-10-12, Todo #460)
 
 - **Ablage:** `/Apps/Claude/Todo-App/anhaenge/<todo-id>/<uuid>.jpg`, im Todo als relativer Pfad in `anhaenge`.
-- **App:** Bearbeiten-Dialog → „Kamera“ / „Galerie“ (`capture="environment"` bzw. `multiple`). `fotoVerkleinern()`
+- **App:** Bearbeiten-Dialog → „Kamera“ / „Files“ / „Einfügen“ (`capture="environment"` bzw. `multiple`; „Einfügen“ = `navigator.clipboard.read()`, dazu ⌘V/Strg+V per `paste`-Listener, solange der Dialog offen ist – #471). Alle Wege laufen über `fotosHinzu()`. `fotoVerkleinern()`
   (Muster Vokabeltrainer) skaliert auf max. 1600 px, JPEG 0,85. Hochgeladen wird erst beim **Speichern**
   (`fotosSpeichern()`, `dbxPut(..., 'add')`); schlägt der Upload fehl, bleibt der Dialog mit allen Eingaben offen.
   Bei neuen Todos vergibt `showAdd()` die ID vorab (`mId`), damit der Ordner feststeht.
