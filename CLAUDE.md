@@ -30,7 +30,7 @@ git add . && git commit -m "Beschreibung" && git push
     "nr": 118,
     "datum": "YYYY-MM-DD",
     "aufgabe": "Text",
-    "prio": "hoch|mittel|niedrig",
+    "prio": "kunde|hoch|mittel|niedrig",
     "kategorie": "pka",
     "erledigt": false,
     "erledigt_am": null,
@@ -38,7 +38,7 @@ git add . && git commit -m "Beschreibung" && git push
     "faelligkeit_uhrzeit": "HH:MM|null",
     "order": 0,
     "anhaenge": ["anhaenge/<id>/<uuid>.jpg"],
-    "quelle": "claude|app|telegram|siri|skript"
+    "quelle": "claude|app|telegram|siri|skript|feedback"
   }]
 }
 ```
@@ -48,6 +48,7 @@ git add . && git commit -m "Beschreibung" && git push
 - **`order`**: Manuelle Sortierreihenfolge (ganze Zahl, DOM-global); fehlt → Sortierung nach Datum. Wird via Drag & Drop gesetzt.
 - **`anhaenge`** (seit 2026-10-12, #460): Optional, Liste von Foto-Pfaden **relativ zu `/Apps/Claude/Todo-App/`**. Fehlt das Feld, hat das Todo keine Fotos – nie `null` schreiben, sondern das Feld weglassen.
 - **`quelle`** (seit 2026-10-12, #470): Herkunft, beim Anlegen gesetzt – App `app`, Bot `telegram`, iOS-Kurzbefehl `siri`, Server-Skripte (`heimat_import`, `modell_check`) `skript` (alle über `shared/pka_todos.todo_anlegen` im Vereinskalender-Repo). **Claude setzt beim Anlegen immer `"quelle": "claude"`.** Nur `claude` bekommt in der Liste einen Chip „Claude“ (Lucide `bot`) neben der Prio. Bestand ohne Feld bleibt unmarkiert – nicht nachträglich befüllen.
+- **`prio: "kunde"`** (seit 2026-10-16, #509): setzt **nur der Server** für Feedback aus dem Vereinskalender (`quelle: "feedback"`). Gruppe „Kunde“ steht über „Hoch“ (Farbe `--kunde`), im Bearbeiten-Dialog erscheint der Knopf nur bei Kunde-Todos – neu wählbar ist die Prio nicht. Unbekannte/fehlende Prio zeigt die App als „Niedrig“ (`prioVon()`); vorher brach `g[t.prio].push` bei unbekannter Prio die ganze Liste. Neue Prio-Werte ⇒ zuerst App deployen, dann schreiben.
 - **`faelligkeit`**: Optional; `pka_todos_reminder.py` (Cron alle 15 Min) meldet fällige/überfällige Todos per Telegram.
 
 ---
