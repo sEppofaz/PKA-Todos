@@ -222,6 +222,13 @@ Dropbox-Attrappe ersetzen (Download mit `Dropbox-API-Result`, Upload mit 409 bei
 `saveModal()`/`toggle()`/`del()` durchspielen. So am 2026-10-12 verifiziert (12 Prüfungen) – dabei fiel die
 `nr`-Kollision auf. Zusätzlich `card()` über alle echten Todos (353, 0 Fehler).
 
+## ⚠️ Vorfall 2026-10-21: Claude überschreibt App-Todo (#557)
+
+Eine Claude-Session las die lokale Dropbox-Kopie (Stand 16:17), hängte ein Todo mit `max(nr)+1` an und schrieb die
+ganze Datei zurück (17:09). Josefs App-Todo #556 lag da nur auf dem Server: Es ging verloren, und die Nummer wurde
+doppelt vergeben. Dropbox legte keine Konfliktkopie an. App, Telegram und Siri schreiben mit `update(rev)`, Claude
+nicht. Übergangsregel steht in `PKA/CLAUDE.md` (Metadaten-Abgleich direkt vor dem Schreiben). Lösung offen: #557.
+
 ## Speichern bei parallelen Schreibern (#479, 2026-10-12)
 
 Bei 409 (Revision veraltet) führt `_save()` zusammen: **lokale Fassung gewinnt nur bei Todos, die in der App seit dem
