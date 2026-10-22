@@ -523,13 +523,16 @@ async function _save() {
 // ── Render ─────────────────────────────────────────────────────
 function render() {
   const q = searchQuery.trim().toLowerCase();
+  // Suche nach Nummer („557“ oder „#557“): exakter Treffer auf t.nr steht ganz oben, Texttreffer darunter
+  const qNr = /^#?\d+$/.test(q) ? Number(q.replace('#', '')) : null;
+  const nrHit = qNr != null ? db.todos.find(t => t.nr === qNr) : null;
   const filtered = q
-    ? db.todos.filter(t => (t.aufgabe||'').toLowerCase().includes(q))
+    ? db.todos.filter(t => t !== nrHit && (t.aufgabe||'').toLowerCase().includes(q))
     : db.todos.filter(t => t.kategorie === tab);
   const offen = filtered.filter(t => !t.erledigt).sort((a,b) => PRIO_ORDER[prioVon(a)]-PRIO_ORDER[prioVon(b)] || (b.datum||'').localeCompare(a.datum||''));
   const done  = filtered.filter(t => t.erledigt).sort((a,b) => (b.erledigt_am||'').localeCompare(a.erledigt_am||''));
 
-  if (!offen.length && !done.length) {
+  if (!offen.length && !done.length && !nrHit) {
     document.getElementById('list').innerHTML = q
       ? '<div class="empty">Keine Treffer.</div>'
       : '<div class="empty">Keine Todos.<br>+ Neu zum Hinzufügen.</div>';
@@ -540,7 +543,7 @@ function render() {
   offen.forEach(t => g[prioVon(t)].push(t));
   for (const p of Object.keys(g)) g[p].sort((a,b) => rangVon(a)-rangVon(b) || (b.nr||0)-(a.nr||0));
 
-  let h = '';
+  let h = nrHit ? `<div class="prio-label">Nummer #${nrHit.nr}</div>${card(nrHit)}` : '';
   for (const p of Object.keys(g)) {
     if (!g[p].length) continue;
     const dot = 'p' + PRIO_KL[p];
