@@ -36,7 +36,7 @@ git add . && git commit -m "Beschreibung" && git push
     "erledigt_am": null,
     "faelligkeit": "YYYY-MM-DD|null",
     "faelligkeit_uhrzeit": "HH:MM|null",
-    "order": 0,
+    "rang": -563.5,
     "anhaenge": ["anhaenge/<id>/<uuid>.jpg"],
     "quelle": "claude|app|telegram|siri|skript|feedback"
   }]
@@ -45,7 +45,8 @@ git add . && git commit -m "Beschreibung" && git push
 
 - **`nr`**: Stabile 3-stellige Nummer (100, 101, …). Einmalig vergeben, nie geändert. App zeigt `#nr` an. Bei neuen Todos: `Math.max(...todos.map(t => t.nr||0)) + 1`. Claude und App referenzieren mit `#nr`.
 - **`kategorie`**: `pka` | `privat` | `arbeit` (Tabs wieder eingeführt 2026-05-26).
-- **`order`**: Manuelle Sortierreihenfolge (ganze Zahl, DOM-global); fehlt → Sortierung nach Datum. Wird via Drag & Drop gesetzt.
+- **`rang`** (seit 2026-10-22, #562): Sortierwert innerhalb der Prio-Gruppe, aufsteigend. Fehlt er, gilt `-nr` → **neueste Nummer oben**. Beim Ziehen bekommt nur die gezogene Karte einen `rang` (Mitte zwischen den neuen Nachbarn, am Rand ±1), alle anderen bleiben bei ihrer Nummer – neue Todos stehen daher immer oben. Prio-Wechsel im Dialog löscht `rang`. Nur die App schreibt das Feld.
+- **`order`** (veraltet bis 2026-10-22): alter Positionsindex, wird nicht mehr beachtet. Er klebte gezogene Karten dauerhaft nach oben (#442), und bei gleichem Tag war die Reihenfolge zufällig (#562). Steht noch bei alten Einträgen, stört nicht.
 - **`anhaenge`** (seit 2026-10-12, #460): Optional, Liste von Foto-Pfaden **relativ zu `/Apps/Claude/Todo-App/`**. Fehlt das Feld, hat das Todo keine Fotos – nie `null` schreiben, sondern das Feld weglassen.
 - **`quelle`** (seit 2026-10-12, #470): Herkunft, beim Anlegen gesetzt – App `app`, Bot `telegram`, iOS-Kurzbefehl `siri`, Server-Skripte (`heimat_import`, `modell_check`) `skript` (alle über `shared/pka_todos.todo_anlegen` im Vereinskalender-Repo). **Claude setzt beim Anlegen immer `"quelle": "claude"`.** Nur `claude` bekommt in der Liste einen Chip „Claude“ (Lucide `bot`) neben der Prio. Bestand ohne Feld bleibt unmarkiert – nicht nachträglich befüllen.
 - **`prio: "kunde"`** (seit 2026-10-16, #509): setzt **nur der Server** für Feedback aus dem Vereinskalender (`quelle: "feedback"`). Gruppe „Kunde“ steht über „Hoch“ (Farbe `--kunde`), im Bearbeiten-Dialog erscheint der Knopf nur bei Kunde-Todos – neu wählbar ist die Prio nicht. Unbekannte/fehlende Prio zeigt die App als „Niedrig“ (`prioVon()`); vorher brach `g[t.prio].push` bei unbekannter Prio die ganze Liste. Neue Prio-Werte ⇒ zuerst App deployen, dann schreiben.
@@ -61,7 +62,8 @@ git add . && git commit -m "Beschreibung" && git push
 - **Karte antippen** → Bearbeiten-Modal
 - **Checkbox** → Todo abhaken (ohne Edit-Modal zu öffnen)
 - **🗑-Button** → Löschen (Rückfrage über eigene Karte `frage()` statt `confirm()` – der Safari-Dialog lief im schmalen Fenster aus dem Bild, #474)
-- **⠿ Handle** → Drag & Drop innerhalb der Prio-Gruppe (Pointer Events, iOS-kompatibel)
+- **⠿ Handle** → Drag & Drop innerhalb der Prio-Gruppe (Pointer Events). Seit 2026-10-22 (#562) handytauglich: Griff ca. 29×34 px (negativer Rand, Karte bleibt gleich groß), `touchstart` mit `preventDefault` (`passive:false`) – ohne das startet iOS Scrollen/Textauswahl statt Ziehen –, `pointercancel` beendet sauber, am oberen/unteren Rand scrollt die Liste mit (`dragScroll`). Karten sind `user-select:none` (ein Ziehversuch markierte sonst viel Text; Text kopieren geht im Bearbeiten-Dialog). Erledigte Karten haben keinen Griff.
+  **Test ohne Erweiterung:** Chrome headless per CDP (`Emulation.setTouchEmulationEnabled` + `Input.dispatchTouchEvent`, 390×844 mobil) gegen eine Kopie von `index.html`, in der `init()` durch `db = {todos: FIXTURE}; show('app'); render()` ersetzt ist und `save`/`fetch` Attrappen sind. Pitfall: Ein Tippen auf eine Karte öffnet den Bearbeiten-Dialog – vor dem nächsten Ziehtest `closeModal()`.
 - **Fälligkeits-Uhrzeit (seit 2026-10-11, #454):** `#m-faell-uhr` ist ein `<input type=time>`, das der Baustein am Dateiende (Kopie von Vereinskalender `src/shared/uhrzeit_ui.py`, Farben `--bg2`/`--accent`) beim Laden zu einem Textfeld macht: Antippen öffnet ein Fenster in der Bildschirmmitte mit zwei Rädern (Stunde, Minute in 5er-Schritten, krumme Bestandszeit bleibt), leeres Feld startet bei 12:00, „Ohne Uhrzeit“ leert. `setUhr()`/`getUhr()` lesen/schreiben nur noch das Feld, gespeichert wird `HH:MM`. Änderungen am Baustein in **beiden** Repos nachziehen. Das Datumsfeld hat `appearance:none` – iOS zeichnete es sonst höher als die übrigen Felder (Josef-Bild 2026-10-11). Vorher (2026-10-10): zwei Auswahllisten 00/15/30/45.
 - **Uhrzeit ohne Datum (2026-10-11, #448):** Das leere `<input type=date>` sieht auf dem iPhone ausgefüllt aus (graues Datum) – Josef wählte nur die Uhrzeit, `saveModal()` verwarf sie still, es kam keine Erinnerung. Jetzt setzt eine Uhrzeit-Auswahl bei leerem Datum sichtbar `heuteLokal()` (Ortszeit, nicht `toISOString()` = UTC), `saveModal()` macht dasselbe als Sicherheitsnetz.
 - **Fälligkeits-Badges:** ⚠️ überfällig (rot) · 📅 Heute (orange) · 📅 Datum (grau)
